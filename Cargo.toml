@@ -7,3 +7,4 @@ edition = "2024"
 authors = ["Seweryn Czykinowski <sevveryn.czykinowski@gmail.com>"]
 
 [dependencies]
+chrono = "0.4.41"
