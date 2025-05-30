@@ -1,6 +1,6 @@
 //! Inode is a file system object that represents an entry in the file system.
 
-use std::rc::Weak;
+use std::{path::PathBuf, rc::Weak};
 
 use content::InodeContent;
 use metadata::InodeMetadata;
@@ -28,5 +28,17 @@ impl Inode {
             metadata,
             parent,
         }
+    }
+
+    pub fn path(&self) -> Result<PathBuf, String> {
+        let mut path = PathBuf::new();
+        if let Some(parent) = self.parent.as_ref() {
+            let parent_path = parent.upgrade().ok_or("Parent directory does not exist")?;
+            path.push(parent_path.path()?);
+        } else {
+            path.push("/");
+        }
+
+        Ok(path)
     }
 }

@@ -1,13 +1,24 @@
-use crate::fs::FileSystem;
+use std::collections::HashMap;
+
+use strum::IntoEnumIterator;
+
+use crate::{
+    commands::{Command, CommandList, CommandOutput},
+    fs::FileSystem,
+};
 
 pub struct Shell {
     pub fs: FileSystem,
+    pub commands: HashMap<String, CommandList>,
 }
 
 impl Shell {
     pub fn new() -> Self {
         Self {
             fs: FileSystem::default(),
+            commands: CommandList::iter()
+                .map(|cmd| (cmd.name().to_string(), cmd))
+                .collect(),
         }
     }
 }
@@ -19,13 +30,25 @@ impl Default for Shell {
 }
 
 impl Shell {
-    pub fn execute(&self, command: &str) -> Result<(), String> {
-        if command.is_empty() {
-            return Err("Tried to execute an empty command".to_string());
-        }
-        // let tokens = shlex::split(command).ok_or("Failed to split command")?;
-        // let command = tokens.first().ok_or("Failed to get command")?;
+    pub fn execute(&mut self, command: &str) -> CommandOutput {
+        let fs = &mut self.fs;
+        let commands = &self.commands;
 
-        Ok(())
+        if command.is_empty() {
+            panic!("Tried to execute an empty command");
+        }
+        let tokens = shlex::split(command).expect("Failed to split command");
+        let (cmd_str, args) = tokens.split_first().expect("Failed to get command");
+        let command = match commands.get(cmd_str) {
+            Some(cmd) => cmd,
+            None => {
+                return CommandOutput(format!("Unknown command: {}", cmd_str));
+            }
+        };
+
+        match command.execute(args, fs) {
+            Ok(output) => output,
+            Err(error) => CommandOutput(error),
+        }
     }
 }

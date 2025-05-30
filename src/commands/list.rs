@@ -1,8 +1,12 @@
 //! The list of shell commands supported by the shell.
 
-use crate::commands::Command;
+use strum_macros::EnumIter;
 
-mod pwd;
+use crate::commands::list;
+pub mod pwd;
 
+#[derive(EnumIter)]
 #[enum_dispatch::enum_dispatch]
-pub enum CommandList {}
+pub enum CommandList {
+    Pwd(list::pwd::PwdCommand),
+}
