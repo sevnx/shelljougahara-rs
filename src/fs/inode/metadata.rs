@@ -14,3 +14,15 @@ pub struct InodeMetadata {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+impl InodeMetadata {
+    pub fn new(permissions: FilePermissions, owner: UserId, group: GroupId) -> Self {
+        Self {
+            permissions,
+            owner,
+            group,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+}
