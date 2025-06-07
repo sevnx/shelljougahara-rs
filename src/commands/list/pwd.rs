@@ -10,7 +10,7 @@ use crate::{
 pub struct PwdCommand;
 
 impl Command for PwdCommand {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "pwd"
     }
 

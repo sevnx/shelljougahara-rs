@@ -5,7 +5,7 @@ use std::rc::{Rc, Weak};
 use inode::{Inode, content::Directory};
 use users::{GroupStore, UserStore};
 
-use crate::{FilePermissions, InodeContent, InodeMetadata};
+use crate::{FilePermissions, InodeContent, InodeMetadata, errors::CommandError};
 
 pub mod inode;
 pub mod permissions;
@@ -21,12 +21,6 @@ pub struct FileSystem {
 
 impl FileSystem {
     pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl Default for FileSystem {
-    fn default() -> Self {
         let mut groups = GroupStore::new();
         let root_group_id = groups.add_group("root".to_string());
 
@@ -54,5 +48,11 @@ impl Default for FileSystem {
             users,
             groups,
         }
+    }
+}
+
+impl Default for FileSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }

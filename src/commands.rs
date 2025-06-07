@@ -11,7 +11,7 @@ mod list;
 
 #[enum_dispatch::enum_dispatch(CommandList)]
 pub trait Command {
-    fn name(&self) -> &str;
+    fn name(&self) -> &'static str;
     fn flags(&self) -> Flags;
     /// Executes a command
     ///
