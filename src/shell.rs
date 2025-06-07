@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 use crate::{
+    UserId,
     commands::{Command, CommandList, CommandOutput},
     fs::FileSystem,
 };
@@ -20,6 +21,20 @@ impl Shell {
                 .map(|cmd| (cmd.name().to_string(), cmd))
                 .collect(),
         }
+    }
+
+    pub fn add_user(&mut self, username: &str) -> UserId {
+        let group_id = self.fs.groups.add_group(username.to_string());
+        let user_id = self.fs.users.add_user(username.to_string());
+        let user = self.fs.users.user_mut(user_id).expect("User not found");
+        user.add_group(group_id);
+        user_id
+    }
+
+    pub fn new_with_user(username: &str) -> Self {
+        let mut shell = Self::new();
+        shell.add_user(username);
+        shell
     }
 }
 
