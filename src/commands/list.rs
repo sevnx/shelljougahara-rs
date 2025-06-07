@@ -3,6 +3,8 @@
 use strum_macros::EnumIter;
 
 use crate::commands::list;
+
+pub mod cd;
 pub mod pwd;
 
 #[derive(EnumIter)]
