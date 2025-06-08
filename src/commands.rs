@@ -1,6 +1,6 @@
 //! Commands, the things that the shell can execute.
 
-use crate::{FileSystem, errors::CommandError};
+use crate::{FileSystem, errors::ShellError};
 use flags::Flags;
 
 // Re-export
@@ -20,7 +20,7 @@ pub trait Command {
     /// - `Ok(CommandOutput)` on successful execution, where the output contains
     ///   the command's result or any user-facing error messages.
     /// - `Err` when an unexpected internal error occurs that prevents command execution.
-    fn execute(&self, args: &[String], fs: &mut FileSystem) -> Result<CommandOutput, CommandError>;
+    fn execute(&self, args: &[String], fs: &mut FileSystem) -> Result<CommandOutput, ShellError>;
 }
 
 pub struct CommandOutput(pub String);

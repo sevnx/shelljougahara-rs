@@ -7,10 +7,6 @@ mod fs;
 mod parser;
 mod shell;
 
-// Re-export log
-#[macro_use]
-extern crate log;
-
 // Re-export
 pub use fs::{
     FileSystem,

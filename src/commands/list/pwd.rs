@@ -3,7 +3,7 @@
 use crate::{
     FileSystem,
     commands::{Command, CommandOutput, flags::Flags},
-    errors::CommandError,
+    errors::ShellError,
 };
 
 #[derive(Default)]
@@ -19,10 +19,9 @@ impl Command for PwdCommand {
         Flags::new()
     }
 
-    fn execute(&self, _: &[String], fs: &mut FileSystem) -> Result<CommandOutput, CommandError> {
+    fn execute(&self, _: &[String], fs: &mut FileSystem) -> Result<CommandOutput, ShellError> {
         let path = fs.current_dir.upgrade().ok_or_else(|| {
-            error!("Current directory does not exist");
-            "Internal error: current directory does not exist"
+            ShellError::InternalError("Current directory does not exist".to_string())
         })?;
 
         let path = path.borrow().path()?;

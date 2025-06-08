@@ -4,6 +4,7 @@ use strum::IntoEnumIterator;
 
 use crate::{
     commands::{Command, CommandList, CommandOutput},
+    errors::ShellError,
     fs::FileSystem,
 };
 
@@ -24,7 +25,7 @@ impl Shell {
 }
 
 impl Shell {
-    pub fn execute(&mut self, command: &str) -> CommandOutput {
+    pub fn execute(&mut self, command: &str) -> Result<CommandOutput, ShellError> {
         let fs = &mut self.fs;
         let commands = &self.commands;
 
@@ -36,13 +37,13 @@ impl Shell {
         let command = match commands.get(cmd_str) {
             Some(cmd) => cmd,
             None => {
-                return CommandOutput(format!("Unknown command: {}", cmd_str));
+                return Ok(CommandOutput(format!("Unknown command: {}", cmd_str)));
             }
         };
 
         match command.execute(args, fs) {
-            Ok(output) => output,
-            Err(error) => CommandOutput(error),
+            Ok(output) => Ok(output),
+            Err(error) => Err(error),
         }
     }
 }

@@ -3,7 +3,7 @@
 use crate::{
     FileSystem,
     commands::{Command, CommandOutput, flags::Flags},
-    errors::CommandError,
+    errors::ShellError,
 };
 
 #[derive(Default)]
@@ -18,7 +18,7 @@ impl Command for ChangeDirectoryCommand {
         Flags::new()
     }
 
-    fn execute(&self, args: &[String], fs: &mut FileSystem) -> Result<CommandOutput, CommandError> {
+    fn execute(&self, _: &[String], _: &mut FileSystem) -> Result<CommandOutput, ShellError> {
         todo!()
     }
 }

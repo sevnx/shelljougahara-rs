@@ -8,7 +8,7 @@ use std::{
 use inode::{Inode, content::Directory};
 use users::{GroupStore, UserStore};
 
-use crate::{FilePermissions, InodeContent, InodeMetadata, UserId};
+use crate::{FilePermissions, InodeContent, InodeMetadata, UserId, fs::inode::content::File};
 
 pub mod inode;
 pub mod permissions;
@@ -44,8 +44,17 @@ impl FileSystem {
                 root_group_id,
             ),
             None,
-        );
+        )
+        .expect("Failed to create root inode");
+
         let root = Rc::new(RefCell::new(root));
+        root.borrow_mut()
+            .add_child(
+                "test",
+                InodeContent::File(File::new()),
+                Rc::downgrade(&root),
+            )
+            .expect("Failed to add child to root");
 
         // Create the current user and its home directory
         let current_user_id = users.add_user(username.to_string());

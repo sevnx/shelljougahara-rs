@@ -1,14 +1,18 @@
 //! The content of a directory inode.
 
 use std::{
+    cell::RefCell,
     collections::{HashMap, hash_map::Entry},
     rc::Rc,
 };
 
-use crate::{Inode, errors::OperationResult};
+use crate::{
+    Inode,
+    errors::{FileSystemError, ShellError},
+};
 
 pub struct Directory {
-    pub children: HashMap<String, Rc<Inode>>,
+    pub children: HashMap<String, Rc<RefCell<Inode>>>,
 }
 
 impl Directory {
@@ -18,17 +22,20 @@ impl Directory {
         }
     }
 
-    pub fn add_child(&mut self, child: Rc<Inode>) -> OperationResult {
-        match self.children.entry(child.name.clone()) {
+    pub fn add_child(&mut self, child: Rc<RefCell<Inode>>) -> Result<(), ShellError> {
+        let name = child.borrow().name.clone();
+        match self.children.entry(name.clone()) {
             Entry::Vacant(entry) => {
-                entry.insert(child);
-                OperationResult::Success
+                entry.insert(child.clone());
+                Ok(())
             }
-            Entry::Occupied(_) => OperationResult::Failure,
+            Entry::Occupied(_) => Err(ShellError::FileSystemError(
+                FileSystemError::EntryAlreadyExists(name),
+            )),
         }
     }
 
-    pub fn exists(&self, name: &str) -> bool {
+    pub fn contains(&self, name: &str) -> bool {
         self.children.contains_key(name)
     }
 
@@ -36,7 +43,7 @@ impl Directory {
         self.children.remove(child_name);
     }
 
-    pub fn find_child(&self, name: &str) -> Option<&Inode> {
+    pub fn find_child(&self, name: &str) -> Option<&RefCell<Inode>> {
         self.children.get(name).map(|inode| inode.as_ref())
     }
 }
