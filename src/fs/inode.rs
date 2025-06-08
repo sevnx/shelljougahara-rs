@@ -9,7 +9,7 @@ use std::{
 use content::InodeContent;
 use metadata::InodeMetadata;
 
-use crate::errors::ShellError;
+use crate::errors::{FileSystemError, ShellError};
 
 pub mod content;
 pub mod metadata;
@@ -89,9 +89,7 @@ impl Inode {
                     Some(parent_ref),
                 )?;
                 let inode_ref = Rc::new(RefCell::new(inode));
-                directory
-                    .add_child(inode_ref.clone())
-                    .expect("Failed to add child");
+                directory.add_child(inode_ref.clone())?;
                 Ok(inode_ref)
             }
             _ => Err(ShellError::Internal(
@@ -104,9 +102,8 @@ impl Inode {
         match self.content {
             InodeContent::Directory(ref mut directory) => {
                 if !directory.contains(child_name) {
-                    return Err(ShellError::Internal(format!(
-                        "Child with name {} not found in {}",
-                        child_name, self.name
+                    return Err(ShellError::FileSystem(FileSystemError::EntryNotFound(
+                        child_name.to_string(),
                     )));
                 }
                 directory.remove_child(child_name);

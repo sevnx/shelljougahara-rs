@@ -30,10 +30,13 @@ impl Shell {
         let commands = &self.commands;
 
         if command.is_empty() {
-            panic!("Tried to execute an empty command");
+            return Err(ShellError::Internal("Empty command provided".to_string()));
         }
-        let tokens = shlex::split(command).expect("Failed to split command");
-        let (cmd_str, args) = tokens.split_first().expect("Failed to get command");
+        let tokens = shlex::split(command)
+            .ok_or_else(|| ShellError::Internal("Failed to parse command".to_string()))?;
+        let (cmd_str, args) = tokens
+            .split_first()
+            .ok_or_else(|| ShellError::Internal("Failed to get command from tokens".to_string()))?;
         let command = match commands.get(cmd_str) {
             Some(cmd) => cmd,
             None => {

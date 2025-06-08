@@ -22,6 +22,8 @@ pub enum FileSystemError {
     DirectoryNotFound(String),
     #[error("Incorrect path")]
     IncorrectPath,
+    #[error("Entry not found: {0}")]
+    EntryNotFound(String),
 }
 
 #[derive(Error, Debug)]
