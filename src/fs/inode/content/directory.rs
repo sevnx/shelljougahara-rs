@@ -29,9 +29,9 @@ impl Directory {
                 entry.insert(child.clone());
                 Ok(())
             }
-            Entry::Occupied(_) => Err(ShellError::FileSystemError(
-                FileSystemError::EntryAlreadyExists(name),
-            )),
+            Entry::Occupied(_) => Err(ShellError::FileSystem(FileSystemError::EntryAlreadyExists(
+                name,
+            ))),
         }
     }
 
@@ -43,8 +43,8 @@ impl Directory {
         self.children.remove(child_name);
     }
 
-    pub fn find_child(&self, name: &str) -> Option<&RefCell<Inode>> {
-        self.children.get(name).map(|inode| inode.as_ref())
+    pub fn find_child(&self, name: &str) -> Option<Rc<RefCell<Inode>>> {
+        self.children.get(name).cloned()
     }
 }
 

@@ -8,7 +8,10 @@ use std::{
 use inode::{Inode, content::Directory};
 use users::{GroupStore, UserStore};
 
-use crate::{FilePermissions, InodeContent, InodeMetadata, UserId, fs::inode::content::File};
+use crate::{
+    FilePermissions, InodeContent, InodeMetadata, UserId,
+    errors::{FileSystemError, ShellError, UserError},
+};
 
 pub mod inode;
 pub mod permissions;
@@ -24,7 +27,7 @@ pub struct FileSystem {
 }
 
 impl FileSystem {
-    pub fn new_with_user(username: &str) -> Self {
+    fn new_as_root() -> Self {
         let mut groups = GroupStore::new();
         let mut users = UserStore::new();
 
@@ -35,38 +38,183 @@ impl FileSystem {
         user.add_group(root_group_id);
 
         // Create the root directory
-        let root = Inode::new(
-            String::new(),
-            InodeContent::Directory(Directory::new()),
-            InodeMetadata::new(
-                FilePermissions::from_mode(0o755),
-                root_user_id,
-                root_group_id,
-            ),
-            None,
-        )
-        .expect("Failed to create root inode");
-
-        let root = Rc::new(RefCell::new(root));
-        root.borrow_mut()
-            .add_child(
-                "test",
-                InodeContent::File(File::new()),
-                Rc::downgrade(&root),
+        let root = Rc::new(RefCell::new(
+            Inode::new(
+                String::new(),
+                InodeContent::Directory(Directory::new()),
+                InodeMetadata::new(
+                    FilePermissions::from_mode(0o755),
+                    root_user_id,
+                    root_group_id,
+                ),
+                None,
             )
-            .expect("Failed to add child to root");
-
-        // Create the current user and its home directory
-        let current_user_id = users.add_user(username.to_string());
-        let current_user = users.user_mut(current_user_id).expect("User not found");
-        current_user.add_group(root_group_id);
+            .expect("Failed to create root inode"),
+        ));
 
         Self {
             current_dir: Rc::downgrade(&root),
             root,
             users,
             groups,
-            current_user: current_user_id,
+            current_user: root_user_id,
         }
+    }
+
+    /// Creates a new file system for a given user, creating their home directory.
+    pub fn new_with_user(username: &str) -> Self {
+        let mut file_system = Self::new_as_root();
+        let user_id = file_system.add_user(username).expect("Failed to add user");
+        file_system
+            .change_user(user_id)
+            .expect("Failed to change user");
+        file_system
+    }
+
+    fn get_home_directory(&self) -> Result<Rc<RefCell<Inode>>, ShellError> {
+        let root_inode = self.root.borrow();
+        match root_inode.find_child("home") {
+            Some(home_directory) => Ok(home_directory),
+            None => Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                "Home directory does not exist".to_string(),
+            ))),
+        }
+    }
+
+    fn get_or_create_home_directory(&mut self) -> Result<Rc<RefCell<Inode>>, ShellError> {
+        let mut root_inode = self.root.borrow_mut();
+        match root_inode.find_child("home") {
+            Some(home_directory) => Ok(home_directory),
+            None => {
+                let home_directory = root_inode.add_child(
+                    "home",
+                    InodeContent::Directory(Directory::new()),
+                    Rc::downgrade(&self.root),
+                )?;
+                Ok(home_directory)
+            }
+        }
+    }
+
+    pub fn add_user(&mut self, username: &str) -> Result<UserId, ShellError> {
+        let home_directory = self.get_or_create_home_directory()?;
+        let user_id = self.users.add_user(username.to_string());
+        let user_group_id = self.groups.add_group(username.to_string());
+        let user = self.users.user_mut(user_id).expect("User not found");
+        user.add_group(user_group_id);
+        home_directory.borrow_mut().add_child(
+            username,
+            InodeContent::Directory(Directory::new()),
+            Rc::downgrade(&home_directory),
+        )?;
+        Ok(user_id)
+    }
+
+    pub fn change_user(&mut self, user_id: UserId) -> Result<(), ShellError> {
+        if self.users.user(user_id).is_none() {
+            Err(ShellError::User(UserError::UserNotFound))
+        } else {
+            self.current_user = user_id;
+            Ok(())
+        }
+    }
+
+    pub fn change_directory(&mut self, path: &str) -> Result<(), ShellError> {
+        let directory_change =
+            parse_directory_change(path).expect("Failed to parse directory change");
+        let new_dir = match directory_change {
+            DirectoryChange::Absolute(path) => Some(self.find_inode(self.root.clone(), &path)?),
+            DirectoryChange::Relative(path) => {
+                let current_dir = self.current_dir.upgrade().ok_or_else(|| {
+                    ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                        "Current directory does not exist".to_string(),
+                    ))
+                })?;
+                Some(self.find_inode(current_dir, &path)?)
+            }
+            DirectoryChange::Home(path) => match path.chars().nth(0) {
+                Some('/') | None => {
+                    let current_user = self.users.user(self.current_user).expect("User not found");
+                    let home_dir = self.get_home_directory()?;
+                    let user_dir = self.find_inode(home_dir, &current_user.name)?;
+                    if path.is_empty() {
+                        Some(user_dir)
+                    } else {
+                        Some(self.find_inode(user_dir, &path)?)
+                    }
+                }
+                Some(_) => return Err(ShellError::FileSystem(FileSystemError::IncorrectPath)),
+            },
+            DirectoryChange::Parent => {
+                let current_dir = self.current_dir.upgrade().ok_or_else(|| {
+                    ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                        "Current directory does not exist".to_string(),
+                    ))
+                })?;
+                if let Some(parent_dir) = current_dir.borrow().parent.clone() {
+                    let parent_dir = parent_dir.upgrade().ok_or_else(|| {
+                        ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                            "Parent directory does not exist".to_string(),
+                        ))
+                    })?;
+                    Some(parent_dir)
+                } else {
+                    // We are already at the root directory
+                    None
+                }
+            }
+            DirectoryChange::Current => None,
+            DirectoryChange::Previous => {
+                // TODO: History implementation (if even needed)
+                None
+            }
+        };
+        if let Some(new_dir) = new_dir {
+            self.current_dir = Rc::downgrade(&new_dir);
+        }
+        Ok(())
+    }
+
+    pub fn find_inode(
+        &self,
+        base: Rc<RefCell<Inode>>,
+        relative_path: &str,
+    ) -> Result<Rc<RefCell<Inode>>, ShellError> {
+        let mut current_inode = base;
+        for component in relative_path.split('/') {
+            if component.is_empty() {
+                continue;
+            }
+            let child_inode = current_inode
+                .borrow_mut()
+                .find_child(component)
+                .ok_or_else(|| {
+                    ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                        component.to_string(),
+                    ))
+                })?;
+            current_inode = child_inode;
+        }
+        Ok(current_inode)
+    }
+}
+
+pub enum DirectoryChange {
+    Absolute(String),
+    Relative(String),
+    Home(String),
+    Parent,
+    Current,
+    Previous,
+}
+
+pub fn parse_directory_change(path: &str) -> Result<DirectoryChange, ShellError> {
+    match path.chars().next() {
+        Some('/') => Ok(DirectoryChange::Absolute(path.to_string())),
+        Some('~') => Ok(DirectoryChange::Home(path[1..].to_string())),
+        Some('-') => Ok(DirectoryChange::Previous),
+        Some('.') => Ok(DirectoryChange::Parent),
+        Some(_) => Ok(DirectoryChange::Relative(path.to_string())),
+        None => Ok(DirectoryChange::Current),
     }
 }

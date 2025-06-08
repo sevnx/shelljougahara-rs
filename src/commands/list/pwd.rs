@@ -20,9 +20,10 @@ impl Command for PwdCommand {
     }
 
     fn execute(&self, _: &[String], fs: &mut FileSystem) -> Result<CommandOutput, ShellError> {
-        let path = fs.current_dir.upgrade().ok_or_else(|| {
-            ShellError::InternalError("Current directory does not exist".to_string())
-        })?;
+        let path = fs
+            .current_dir
+            .upgrade()
+            .ok_or_else(|| ShellError::Internal("Current directory does not exist".to_string()))?;
 
         let path = path.borrow().path()?;
 

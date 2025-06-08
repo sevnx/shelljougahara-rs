@@ -5,9 +5,11 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ShellError {
     #[error("Internal error: {0}")]
-    InternalError(String),
+    Internal(String),
     #[error(transparent)]
-    FileSystemError(FileSystemError),
+    FileSystem(FileSystemError),
+    #[error(transparent)]
+    User(UserError),
 }
 
 #[derive(Error, Debug)]
@@ -16,4 +18,14 @@ pub enum FileSystemError {
     /// It has been checked in Linux, that even for a directory, it says "File exists"
     #[error("{0}: File exists")]
     EntryAlreadyExists(String),
+    #[error("Directory not found")]
+    DirectoryNotFound(String),
+    #[error("Incorrect path")]
+    IncorrectPath,
+}
+
+#[derive(Error, Debug)]
+pub enum UserError {
+    #[error("User not found")]
+    UserNotFound,
 }

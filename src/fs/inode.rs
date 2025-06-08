@@ -34,7 +34,7 @@ impl Inode {
         parent: Option<Weak<RefCell<Inode>>>,
     ) -> Result<Self, ShellError> {
         if name.is_empty() && parent.is_some() {
-            return Err(ShellError::InternalError(
+            return Err(ShellError::Internal(
                 "Cannot create an inode with an empty name and a parent".to_string(),
             ));
         }
@@ -54,7 +54,7 @@ impl Inode {
     /// An error would mean that a parent directory does not exist, which is an internal error.
     pub fn path(&self) -> Result<PathBuf, ShellError> {
         let path = if let Some(parent_weak) = self.parent.as_ref() {
-            let parent = parent_weak.upgrade().ok_or(ShellError::InternalError(
+            let parent = parent_weak.upgrade().ok_or(ShellError::Internal(
                 "Parent directory should exist".to_string(),
             ))?;
             let mut parent_path = parent.borrow().path()?;
@@ -79,7 +79,7 @@ impl Inode {
         child_name: &str,
         inode_content: InodeContent,
         parent_ref: Weak<RefCell<Inode>>,
-    ) -> Result<Option<Rc<RefCell<Inode>>>, ShellError> {
+    ) -> Result<Rc<RefCell<Inode>>, ShellError> {
         match self.content {
             InodeContent::Directory(ref mut directory) => {
                 let inode = Inode::new(
@@ -92,9 +92,9 @@ impl Inode {
                 directory
                     .add_child(inode_ref.clone())
                     .expect("Failed to add child");
-                Ok(Some(inode_ref))
+                Ok(inode_ref)
             }
-            _ => Err(ShellError::InternalError(
+            _ => Err(ShellError::Internal(
                 "Tried to add a child to an inode that is not a directory".to_string(),
             )),
         }
@@ -104,7 +104,7 @@ impl Inode {
         match self.content {
             InodeContent::Directory(ref mut directory) => {
                 if !directory.contains(child_name) {
-                    return Err(ShellError::InternalError(format!(
+                    return Err(ShellError::Internal(format!(
                         "Child with name {} not found in {}",
                         child_name, self.name
                     )));
@@ -112,13 +112,13 @@ impl Inode {
                 directory.remove_child(child_name);
                 Ok(())
             }
-            _ => Err(ShellError::InternalError(
+            _ => Err(ShellError::Internal(
                 "Tried to remove a child from an inode that is not a directory".to_string(),
             )),
         }
     }
 
-    pub fn find_child(&self, child_name: &str) -> Option<&RefCell<Inode>> {
+    pub fn find_child(&self, child_name: &str) -> Option<Rc<RefCell<Inode>>> {
         match self.content {
             InodeContent::Directory(ref directory) => directory.find_child(child_name),
             _ => None,

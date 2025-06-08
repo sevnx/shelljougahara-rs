@@ -32,6 +32,10 @@ impl UserStore {
         id
     }
 
+    pub fn user(&self, id: UserId) -> Option<&User> {
+        self.users.get(&id)
+    }
+
     pub fn user_mut(&mut self, id: UserId) -> Option<&mut User> {
         self.users.get_mut(&id)
     }
