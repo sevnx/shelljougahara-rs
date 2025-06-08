@@ -2,7 +2,8 @@ use shelljougahara::Shell;
 
 #[test]
 fn test_pwd() {
-    let mut shell = Shell::default();
+    let username = "test";
+    let mut shell = Shell::new_with_user(username);
     let output = shell.execute("pwd");
-    assert_eq!(output.0, "/");
+    assert_eq!(output.0, format!("/home/{}", username));
 }

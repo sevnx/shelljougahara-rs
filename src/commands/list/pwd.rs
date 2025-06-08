@@ -25,7 +25,7 @@ impl Command for PwdCommand {
             "Internal error: current directory does not exist"
         })?;
 
-        let path = path.path()?;
+        let path = path.borrow().path()?;
 
         Ok(CommandOutput(path.display().to_string()))
     }

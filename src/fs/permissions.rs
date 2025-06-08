@@ -1,5 +1,6 @@
 //! Permissions are a set of flags that control the access to a file system object.
 
+#[derive(Clone)]
 pub struct FilePermissions {
     pub mode: u32,
 }
