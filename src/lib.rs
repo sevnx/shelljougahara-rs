@@ -4,7 +4,6 @@
 mod commands;
 mod errors;
 mod fs;
-mod parser;
 mod shell;
 
 // Re-export
