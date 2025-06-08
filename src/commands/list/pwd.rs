@@ -1,7 +1,6 @@
 //! The print working directory command.
 
 use crate::{
-    FileSystem,
     commands::{Command, CommandOutput, flags::Flags},
     errors::ShellError,
 };
@@ -19,11 +18,15 @@ impl Command for PwdCommand {
         Flags::new()
     }
 
-    fn execute(&self, _: &[String], fs: &mut FileSystem) -> Result<CommandOutput, ShellError> {
-        let path = fs
-            .current_dir
-            .upgrade()
-            .ok_or_else(|| ShellError::Internal("Current directory does not exist".to_string()))?;
+    fn execute(
+        &self,
+        _: &[String],
+        shell: &mut crate::shell::Shell,
+    ) -> Result<CommandOutput, ShellError> {
+        let path =
+            shell.fs.current_dir.upgrade().ok_or_else(|| {
+                ShellError::Internal("Current directory does not exist".to_string())
+            })?;
 
         let path = path.borrow().path()?;
 

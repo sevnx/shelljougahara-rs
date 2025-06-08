@@ -1,34 +1,27 @@
-use std::collections::HashMap;
-
-use strum::IntoEnumIterator;
+//! The shell, the main entry point for the shell.
 
 use crate::{
-    commands::{Command, CommandList, CommandOutput},
+    commands::{Command, CommandOutput, get_commands},
     errors::ShellError,
     fs::FileSystem,
 };
 
 pub struct Shell {
     pub fs: FileSystem,
-    pub commands: HashMap<String, CommandList>,
+    pub executed_commands: Vec<String>,
 }
 
 impl Shell {
     pub fn new_with_user(username: &str) -> Self {
         Self {
             fs: FileSystem::new_with_user(username),
-            commands: CommandList::iter()
-                .map(|cmd| (cmd.name().to_string(), cmd))
-                .collect(),
+            executed_commands: Vec::new(),
         }
     }
 }
 
 impl Shell {
     pub fn execute(&mut self, command: &str) -> Result<CommandOutput, ShellError> {
-        let fs = &mut self.fs;
-        let commands = &self.commands;
-
         if command.is_empty() {
             return Err(ShellError::Internal("Empty command provided".to_string()));
         }
@@ -37,14 +30,16 @@ impl Shell {
         let (cmd_str, args) = tokens
             .split_first()
             .ok_or_else(|| ShellError::Internal("Failed to get command from tokens".to_string()))?;
-        let command = match commands.get(cmd_str) {
+        let command = match get_commands().get(cmd_str.as_str()) {
             Some(cmd) => cmd,
             None => {
                 return Ok(CommandOutput(format!("Unknown command: {}", cmd_str)));
             }
         };
 
-        match command.execute(args, fs) {
+        self.executed_commands.push(command.name().to_string());
+
+        match command.execute(args, self) {
             Ok(output) => Ok(output),
             Err(error) => Err(error),
         }

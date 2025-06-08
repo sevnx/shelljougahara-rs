@@ -1,7 +1,6 @@
 //! The change directory command.
 
 use crate::{
-    FileSystem,
     commands::{Command, CommandOutput, flags::Flags},
     errors::{FileSystemError, ShellError},
 };
@@ -21,12 +20,12 @@ impl Command for ChangeDirectoryCommand {
     fn execute(
         &self,
         args: &[String],
-        file_system: &mut FileSystem,
+        shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
         let change_result = if args.is_empty() {
-            file_system.change_directory("~")
+            shell.fs.change_directory("~")
         } else {
-            file_system.change_directory(&args[0])
+            shell.fs.change_directory(&args[0])
         };
         match change_result {
             Ok(_) => Ok(CommandOutput("".to_string())),
