@@ -30,8 +30,8 @@ impl Command for ChangeDirectoryCommand {
         };
         match change_result {
             Ok(_) => Ok(CommandOutput("".to_string())),
-            Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(message))) => Ok(
-                CommandOutput(format!("cd: {}: No such file or directory", message)),
+            Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(_))) => Ok(
+                CommandOutput(format!("cd: {}: No such file or directory", args[0])),
             ),
             Err(e) => Err(e),
         }

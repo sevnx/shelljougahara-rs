@@ -69,6 +69,9 @@ impl FileSystem {
             .change_user(user_id)
             .expect("Failed to change user");
         file_system
+            .change_directory("~")
+            .expect("Failed to change directory");
+        file_system
     }
 
     fn get_home_directory(&self) -> Result<Rc<RefCell<Inode>>, ShellError> {
@@ -209,12 +212,25 @@ pub enum DirectoryChange {
 }
 
 pub fn parse_directory_change(path: &str) -> Result<DirectoryChange, ShellError> {
+    // Handle special cases (ugly)
+    // TODO: Handle this better
+    if path == ".." || path == "../" {
+        return Ok(DirectoryChange::Parent);
+    }
+    if path == "." || path == "./" {
+        return Ok(DirectoryChange::Current);
+    }
+    if path == "~" || path == "~/" || path.is_empty() {
+        return Ok(DirectoryChange::Home(String::new()));
+    }
+    if path == "-" {
+        return Ok(DirectoryChange::Previous);
+    }
+
     match path.chars().next() {
         Some('/') => Ok(DirectoryChange::Absolute(path.to_string())),
         Some('~') => Ok(DirectoryChange::Home(path[1..].to_string())),
-        Some('-') => Ok(DirectoryChange::Previous),
-        Some('.') => Ok(DirectoryChange::Parent),
         Some(_) => Ok(DirectoryChange::Relative(path.to_string())),
-        None => Ok(DirectoryChange::Current),
+        None => Ok(DirectoryChange::Home(String::new())),
     }
 }

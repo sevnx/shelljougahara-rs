@@ -11,4 +11,5 @@ pub mod pwd;
 #[enum_dispatch::enum_dispatch]
 pub enum CommandList {
     Pwd(list::pwd::PwdCommand),
+    Cd(list::cd::ChangeDirectoryCommand),
 }
