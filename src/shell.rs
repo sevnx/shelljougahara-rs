@@ -24,6 +24,9 @@ impl Shell {
 
 impl Shell {
     pub fn execute(&mut self, command: &str) -> Result<CommandOutput, ShellError> {
+        if !self.active {
+            return Err(ShellError::ShellNotActive);
+        }
         if command.is_empty() {
             return Err(ShellError::Internal("Empty command provided".to_string()));
         }
@@ -32,13 +35,10 @@ impl Shell {
         let (cmd_str, args) = tokens
             .split_first()
             .ok_or_else(|| ShellError::Internal("Failed to get command from tokens".to_string()))?;
-        let command = match get_commands().get(cmd_str.as_str()) {
-            Some(cmd) => cmd,
-            None => {
-                return Ok(CommandOutput(format!("Unknown command: {}", cmd_str)));
-            }
-        };
 
+        let command = get_commands()
+            .get(cmd_str.as_str())
+            .ok_or_else(|| ShellError::Internal(format!("Unknown command: {}", cmd_str)))?;
         self.executed_commands.push(command.name().to_string());
 
         match command.execute(args, self) {

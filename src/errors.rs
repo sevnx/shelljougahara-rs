@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ShellError {
     #[error("Internal error: {0}")]
     Internal(String),
@@ -10,9 +10,11 @@ pub enum ShellError {
     FileSystem(FileSystemError),
     #[error(transparent)]
     User(UserError),
+    #[error("Shell is not active")]
+    ShellNotActive,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum FileSystemError {
     /// The entry in the file system already exists.
     /// It has been checked in Linux, that even for a directory, it says "File exists"
@@ -26,7 +28,7 @@ pub enum FileSystemError {
     EntryNotFound(String),
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum UserError {
     #[error("User not found")]
     UserNotFound,

@@ -2,5 +2,6 @@
 
 mod cd;
 mod echo;
+mod exit;
 mod history;
 mod pwd;

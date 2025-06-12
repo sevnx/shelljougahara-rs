@@ -7,6 +7,7 @@ mod fs;
 mod shell;
 
 // Re-export
+pub use errors::ShellError;
 pub use fs::{
     FileSystem,
     inode::{Inode, content::InodeContent, metadata::InodeMetadata},

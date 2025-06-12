@@ -33,4 +33,5 @@ pub trait Command {
     ) -> Result<CommandOutput, ShellError>;
 }
 
+#[derive(Debug)]
 pub struct CommandOutput(pub String);
