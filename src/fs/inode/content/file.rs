@@ -1,7 +1,7 @@
 //! The content of a file inode.
 
 pub struct File {
-    content: String,
+    pub content: String,
 }
 
 impl File {

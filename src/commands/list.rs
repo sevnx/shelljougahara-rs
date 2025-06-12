@@ -6,6 +6,7 @@ use crate::commands::list;
 
 pub mod cd;
 pub mod echo;
+pub mod exit;
 pub mod history;
 pub mod pwd;
 
@@ -16,4 +17,5 @@ pub enum CommandList {
     Cd(list::cd::ChangeDirectoryCommand),
     History(list::history::HistoryCommand),
     Echo(list::echo::EchoCommand),
+    Exit(list::exit::ExitCommand),
 }

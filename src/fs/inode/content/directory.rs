@@ -1,9 +1,8 @@
 //! The content of a directory inode.
 
 use std::{
-    cell::RefCell,
     collections::{HashMap, hash_map::Entry},
-    rc::Rc,
+    sync::{Arc, Mutex},
 };
 
 use crate::{
@@ -12,7 +11,7 @@ use crate::{
 };
 
 pub struct Directory {
-    pub children: HashMap<String, Rc<RefCell<Inode>>>,
+    pub children: HashMap<String, Arc<Mutex<Inode>>>,
 }
 
 impl Directory {
@@ -22,8 +21,8 @@ impl Directory {
         }
     }
 
-    pub fn add_child(&mut self, child: Rc<RefCell<Inode>>) -> Result<(), ShellError> {
-        let name = child.borrow().name.clone();
+    pub fn add_child(&mut self, child: Arc<Mutex<Inode>>) -> Result<(), ShellError> {
+        let name = child.lock().expect("Failed to lock inode").name.clone();
         match self.children.entry(name.clone()) {
             Entry::Vacant(entry) => {
                 entry.insert(child.clone());
@@ -43,7 +42,7 @@ impl Directory {
         self.children.remove(child_name);
     }
 
-    pub fn find_child(&self, name: &str) -> Option<Rc<RefCell<Inode>>> {
+    pub fn find_child(&self, name: &str) -> Option<Arc<Mutex<Inode>>> {
         self.children.get(name).cloned()
     }
 }

@@ -28,7 +28,10 @@ impl Command for PwdCommand {
                 ShellError::Internal("Current directory does not exist".to_string())
             })?;
 
-        let path = path.borrow().path()?;
+        let path = path
+            .lock()
+            .expect("Failed to lock current directory")
+            .path()?;
 
         Ok(CommandOutput(path.display().to_string()))
     }

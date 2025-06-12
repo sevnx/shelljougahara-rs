@@ -1,9 +1,8 @@
 //! Inode is a file system object that represents an entry in the file system.
 
 use std::{
-    cell::RefCell,
     path::PathBuf,
-    rc::{Rc, Weak},
+    sync::{Arc, Mutex, Weak},
 };
 
 use content::InodeContent;
@@ -18,7 +17,7 @@ pub struct Inode {
     pub name: String,
     pub content: InodeContent,
     pub metadata: InodeMetadata,
-    pub parent: Option<Weak<RefCell<Inode>>>,
+    pub parent: Option<Weak<Mutex<Inode>>>,
 }
 
 impl Inode {
@@ -31,7 +30,7 @@ impl Inode {
         name: String,
         content: InodeContent,
         metadata: InodeMetadata,
-        parent: Option<Weak<RefCell<Inode>>>,
+        parent: Option<Weak<Mutex<Inode>>>,
     ) -> Result<Self, ShellError> {
         if name.is_empty() && parent.is_some() {
             return Err(ShellError::Internal(
@@ -57,7 +56,7 @@ impl Inode {
             let parent = parent_weak.upgrade().ok_or(ShellError::Internal(
                 "Parent directory should exist".to_string(),
             ))?;
-            let mut parent_path = parent.borrow().path()?;
+            let mut parent_path = parent.lock().expect("Failed to lock parent inode").path()?;
             parent_path.push(&self.name);
             parent_path
         } else {
@@ -78,8 +77,8 @@ impl Inode {
         &mut self,
         child_name: &str,
         inode_content: InodeContent,
-        parent_ref: Weak<RefCell<Inode>>,
-    ) -> Result<Rc<RefCell<Inode>>, ShellError> {
+        parent_ref: Weak<Mutex<Inode>>,
+    ) -> Result<Arc<Mutex<Inode>>, ShellError> {
         match self.content {
             InodeContent::Directory(ref mut directory) => {
                 let inode = Inode::new(
@@ -88,7 +87,7 @@ impl Inode {
                     self.metadata.clone(),
                     Some(parent_ref),
                 )?;
-                let inode_ref = Rc::new(RefCell::new(inode));
+                let inode_ref = Arc::new(Mutex::new(inode));
                 directory.add_child(inode_ref.clone())?;
                 Ok(inode_ref)
             }
@@ -115,7 +114,7 @@ impl Inode {
         }
     }
 
-    pub fn find_child(&self, child_name: &str) -> Option<Rc<RefCell<Inode>>> {
+    pub fn find_child(&self, child_name: &str) -> Option<Arc<Mutex<Inode>>> {
         match self.content {
             InodeContent::Directory(ref directory) => directory.find_child(child_name),
             _ => None,
@@ -125,8 +124,6 @@ impl Inode {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
-
     use crate::{
         FilePermissions,
         fs::inode::content::{Directory, File},
@@ -138,15 +135,15 @@ mod tests {
     fn get_simple_inode(
         name: &str,
         content: InodeContent,
-        parent: Option<Weak<RefCell<Inode>>>,
-    ) -> Result<Rc<RefCell<Inode>>, ShellError> {
+        parent: Option<Weak<Mutex<Inode>>>,
+    ) -> Result<Arc<Mutex<Inode>>, ShellError> {
         Inode::new(
             name.to_string(),
             content,
             InodeMetadata::new(FilePermissions::from_mode(0o644), 0, 0),
             parent,
         )
-        .map(|inode| Rc::new(RefCell::new(inode)))
+        .map(|inode| Arc::new(Mutex::new(inode)))
     }
 
     #[test]
@@ -156,7 +153,7 @@ mod tests {
         let empty_child = get_simple_inode(
             "",
             InodeContent::Directory(Directory::new()),
-            Some(Rc::downgrade(&base)),
+            Some(Arc::downgrade(&base)),
         );
         assert!(empty_child.is_err());
     }
@@ -168,20 +165,35 @@ mod tests {
         let dir = get_simple_inode(
             "test",
             InodeContent::File(File::new()),
-            Some(Rc::downgrade(&root)),
+            Some(Arc::downgrade(&root)),
         )
         .expect("Failed to create dir inode");
         let file = get_simple_inode(
             "test.txt",
             InodeContent::File(File::new()),
-            Some(Rc::downgrade(&dir)),
+            Some(Arc::downgrade(&dir)),
         )
         .expect("Failed to create file inode");
 
-        assert_eq!(root.borrow().path().unwrap(), PathBuf::from("/"));
-        assert_eq!(dir.borrow().path().unwrap(), PathBuf::from("/test"));
         assert_eq!(
-            file.borrow().path().unwrap(),
+            root.lock()
+                .expect("Failed to lock root inode")
+                .path()
+                .unwrap(),
+            PathBuf::from("/")
+        );
+        assert_eq!(
+            dir.lock()
+                .expect("Failed to lock dir inode")
+                .path()
+                .unwrap(),
+            PathBuf::from("/test")
+        );
+        assert_eq!(
+            file.lock()
+                .expect("Failed to lock file inode")
+                .path()
+                .unwrap(),
             PathBuf::from("/test/test.txt")
         );
     }
@@ -190,13 +202,19 @@ mod tests {
     fn test_add_and_retrieve_child() {
         let root = get_simple_inode("", InodeContent::Directory(Directory::new()), None)
             .expect("Failed to create root inode");
-        root.borrow_mut()
+        root.lock()
+            .expect("Failed to lock root inode")
             .add_child(
                 "test",
                 InodeContent::File(File::new()),
-                Rc::downgrade(&root.clone()),
+                Arc::downgrade(&root.clone()),
             )
             .expect("Failed to add child");
-        assert!(root.borrow().find_child("test").is_some());
+        assert!(
+            root.lock()
+                .expect("Failed to lock root inode")
+                .find_child("test")
+                .is_some()
+        );
     }
 }

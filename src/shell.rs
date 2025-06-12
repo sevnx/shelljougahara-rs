@@ -9,6 +9,7 @@ use crate::{
 pub struct Shell {
     pub fs: FileSystem,
     pub executed_commands: Vec<String>,
+    pub active: bool,
 }
 
 impl Shell {
@@ -16,6 +17,7 @@ impl Shell {
         Self {
             fs: FileSystem::new_with_user(username),
             executed_commands: Vec::new(),
+            active: true,
         }
     }
 }

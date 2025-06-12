@@ -1,9 +1,6 @@
 //! Simple representation of a file system.
 
-use std::{
-    cell::RefCell,
-    rc::{Rc, Weak},
-};
+use std::sync::{Arc, Mutex, Weak};
 
 use inode::{Inode, content::Directory};
 use users::{GroupStore, UserStore};
@@ -19,10 +16,10 @@ pub mod users;
 
 /// The file system
 pub struct FileSystem {
-    pub root: Rc<RefCell<Inode>>,
+    pub root: Arc<Mutex<Inode>>,
     pub users: UserStore,
     pub groups: GroupStore,
-    pub current_dir: Weak<RefCell<Inode>>,
+    pub current_dir: Weak<Mutex<Inode>>,
     pub current_user: UserId,
 }
 
@@ -38,7 +35,7 @@ impl FileSystem {
         user.add_group(root_group_id);
 
         // Create the root directory
-        let root = Rc::new(RefCell::new(
+        let root = Arc::new(Mutex::new(
             Inode::new(
                 String::new(),
                 InodeContent::Directory(Directory::new()),
@@ -53,7 +50,7 @@ impl FileSystem {
         ));
 
         Self {
-            current_dir: Rc::downgrade(&root),
+            current_dir: Arc::downgrade(&root),
             root,
             users,
             groups,
@@ -74,8 +71,8 @@ impl FileSystem {
         file_system
     }
 
-    fn get_home_directory(&self) -> Result<Rc<RefCell<Inode>>, ShellError> {
-        let root_inode = self.root.borrow();
+    fn get_home_directory(&self) -> Result<Arc<Mutex<Inode>>, ShellError> {
+        let root_inode = self.root.lock().expect("Failed to lock root inode");
         match root_inode.find_child("home") {
             Some(home_directory) => Ok(home_directory),
             None => Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
@@ -84,15 +81,15 @@ impl FileSystem {
         }
     }
 
-    fn get_or_create_home_directory(&mut self) -> Result<Rc<RefCell<Inode>>, ShellError> {
-        let mut root_inode = self.root.borrow_mut();
+    fn get_or_create_home_directory(&mut self) -> Result<Arc<Mutex<Inode>>, ShellError> {
+        let mut root_inode = self.root.lock().expect("Failed to lock root inode");
         match root_inode.find_child("home") {
             Some(home_directory) => Ok(home_directory),
             None => {
                 let home_directory = root_inode.add_child(
                     "home",
                     InodeContent::Directory(Directory::new()),
-                    Rc::downgrade(&self.root),
+                    Arc::downgrade(&self.root),
                 )?;
                 Ok(home_directory)
             }
@@ -105,11 +102,14 @@ impl FileSystem {
         let user_group_id = self.groups.add_group(username.to_string());
         let user = self.users.user_mut(user_id).expect("User not found");
         user.add_group(user_group_id);
-        home_directory.borrow_mut().add_child(
-            username,
-            InodeContent::Directory(Directory::new()),
-            Rc::downgrade(&home_directory),
-        )?;
+        home_directory
+            .lock()
+            .expect("Failed to lock home directory")
+            .add_child(
+                username,
+                InodeContent::Directory(Directory::new()),
+                Arc::downgrade(&home_directory),
+            )?;
         Ok(user_id)
     }
 
@@ -154,7 +154,12 @@ impl FileSystem {
                         "Current directory does not exist".to_string(),
                     ))
                 })?;
-                if let Some(parent_dir) = current_dir.borrow().parent.clone() {
+                if let Some(parent_dir) = current_dir
+                    .lock()
+                    .expect("Failed to lock current directory")
+                    .parent
+                    .clone()
+                {
                     let parent_dir = parent_dir.upgrade().ok_or_else(|| {
                         ShellError::FileSystem(FileSystemError::DirectoryNotFound(
                             "Parent directory does not exist".to_string(),
@@ -173,23 +178,24 @@ impl FileSystem {
             }
         };
         if let Some(new_dir) = new_dir {
-            self.current_dir = Rc::downgrade(&new_dir);
+            self.current_dir = Arc::downgrade(&new_dir);
         }
         Ok(())
     }
 
     pub fn find_inode(
         &self,
-        base: Rc<RefCell<Inode>>,
+        base: Arc<Mutex<Inode>>,
         relative_path: &str,
-    ) -> Result<Rc<RefCell<Inode>>, ShellError> {
+    ) -> Result<Arc<Mutex<Inode>>, ShellError> {
         let mut current_inode = base;
         for component in relative_path.split('/') {
             if component.is_empty() {
                 continue;
             }
             let child_inode = current_inode
-                .borrow_mut()
+                .lock()
+                .expect("Failed to lock inode")
                 .find_child(component)
                 .ok_or_else(|| {
                     ShellError::FileSystem(FileSystemError::DirectoryNotFound(
