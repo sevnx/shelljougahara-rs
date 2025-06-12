@@ -1,3 +1,4 @@
+#![allow(dead_code)] // TODO: Remove this once the flags are used
 //! Flags definition for a command.
 
 use std::collections::HashSet;
