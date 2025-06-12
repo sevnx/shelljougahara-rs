@@ -1,4 +1,5 @@
-//! A shell written in Rust, made to be used in a WASM environment.
+//! A simulated shell written in Rust, made for educational purposes, first and foremost in the
+//! context of the [DesCode](https://github.com/desforgehub/DesCode) project.
 
 // Crate modules
 mod commands;
