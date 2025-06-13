@@ -6,6 +6,7 @@ use crate::{
     fs::FileSystem,
 };
 
+#[derive(Debug, Clone)]
 pub struct Shell {
     pub fs: FileSystem,
     pub executed_commands: Vec<String>,

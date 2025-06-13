@@ -13,6 +13,7 @@ use crate::errors::{FileSystemError, ShellError};
 pub mod content;
 pub mod metadata;
 
+#[derive(Debug, Clone)]
 pub struct Inode {
     pub name: String,
     pub content: InodeContent,

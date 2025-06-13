@@ -15,6 +15,7 @@ pub mod permissions;
 pub mod users;
 
 /// The file system
+#[derive(Debug, Clone)]
 pub struct FileSystem {
     pub root: Arc<Mutex<Inode>>,
     pub users: UserStore,

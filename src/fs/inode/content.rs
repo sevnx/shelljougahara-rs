@@ -8,6 +8,7 @@ pub use directory::Directory;
 pub use file::File;
 pub use link::Link;
 
+#[derive(Debug, Clone)]
 pub enum InodeContent {
     File(File),
     Directory(Directory),

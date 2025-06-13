@@ -5,6 +5,7 @@ use std::collections::HashMap;
 pub type UserId = u32;
 pub type GroupId = u32;
 
+#[derive(Debug, Clone)]
 pub struct UserStore {
     pub users: HashMap<UserId, User>,
     pub next_user_id: UserId,
@@ -50,6 +51,8 @@ impl Default for UserStore {
         Self::new()
     }
 }
+
+#[derive(Debug, Clone)]
 pub struct User {
     pub id: UserId,
     pub name: String,
@@ -74,6 +77,7 @@ impl User {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct GroupStore {
     pub groups: HashMap<GroupId, Group>,
     pub next_group_id: GroupId,
@@ -109,6 +113,7 @@ impl Default for GroupStore {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Group {
     pub id: GroupId,
     pub name: String,

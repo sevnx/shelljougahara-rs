@@ -7,7 +7,7 @@ use crate::fs::{
     users::{GroupId, UserId},
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct InodeMetadata {
     pub permissions: FilePermissions,
     pub owner: UserId,

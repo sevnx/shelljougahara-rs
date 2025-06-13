@@ -10,6 +10,7 @@ use crate::{
     errors::{FileSystemError, ShellError},
 };
 
+#[derive(Debug, Clone)]
 pub struct Directory {
     pub children: HashMap<String, Arc<Mutex<Inode>>>,
 }

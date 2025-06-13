@@ -1,5 +1,6 @@
 //! The content of a file inode.
 
+#[derive(Debug, Clone)]
 pub struct File {
     pub content: String,
 }
