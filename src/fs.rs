@@ -123,27 +123,42 @@ impl FileSystem {
     }
 
     pub fn change_directory(&mut self, path: &str) -> Result<(), ShellError> {
+        let path_map_to_err = |option: Option<Arc<Mutex<Inode>>>| {
+            if let Some(dir) = option {
+                Ok(dir)
+            } else {
+                Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                    "Directory does not exist".to_string(),
+                )))
+            }
+        };
+
         let directory_change =
             parse_directory_change(path).expect("Failed to parse directory change");
         let new_dir = match directory_change {
-            DirectoryChange::Absolute(path) => Some(self.find_inode(self.root.clone(), &path)?),
+            DirectoryChange::Absolute(path) => Some(path_map_to_err(
+                self.find_relative_inode(self.root.clone(), &path),
+            )?),
             DirectoryChange::Relative(path) => {
                 let current_dir = self.current_dir.upgrade().ok_or_else(|| {
                     ShellError::FileSystem(FileSystemError::DirectoryNotFound(
                         "Current directory does not exist".to_string(),
                     ))
                 })?;
-                Some(self.find_inode(current_dir, &path)?)
+                Some(path_map_to_err(
+                    self.find_relative_inode(current_dir, &path),
+                )?)
             }
             DirectoryChange::Home(path) => match path.chars().nth(0) {
                 Some('/') | None => {
                     let current_user = self.users.user(self.current_user).expect("User not found");
                     let home_dir = self.get_home_directory()?;
-                    let user_dir = self.find_inode(home_dir, &current_user.name)?;
+                    let user_dir =
+                        path_map_to_err(self.find_relative_inode(home_dir, &current_user.name))?;
                     if path.is_empty() {
                         Some(user_dir)
                     } else {
-                        Some(self.find_inode(user_dir, &path)?)
+                        Some(path_map_to_err(self.find_relative_inode(user_dir, &path))?)
                     }
                 }
                 Some(_) => return Err(ShellError::FileSystem(FileSystemError::IncorrectPath)),
@@ -183,11 +198,15 @@ impl FileSystem {
         Ok(())
     }
 
-    pub fn find_inode(
+    pub fn find_absolute_inode(&self, path: &str) -> Option<Arc<Mutex<Inode>>> {
+        self.find_relative_inode(self.root.clone(), path)
+    }
+
+    pub fn find_relative_inode(
         &self,
         base: Arc<Mutex<Inode>>,
         relative_path: &str,
-    ) -> Result<Arc<Mutex<Inode>>, ShellError> {
+    ) -> Option<Arc<Mutex<Inode>>> {
         let mut current_inode = base;
         for component in relative_path.split('/') {
             if component.is_empty() {
@@ -196,15 +215,13 @@ impl FileSystem {
             let child_inode = current_inode
                 .lock()
                 .expect("Failed to lock inode")
-                .find_child(component)
-                .ok_or_else(|| {
-                    ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                        component.to_string(),
-                    ))
-                })?;
-            current_inode = child_inode;
+                .find_child(component);
+            match child_inode {
+                Some(inode) => current_inode = inode,
+                None => return None,
+            }
         }
-        Ok(current_inode)
+        Some(current_inode)
     }
 }
 
