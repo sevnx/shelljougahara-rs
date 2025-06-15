@@ -22,14 +22,14 @@ impl Command for HistoryCommand {
         _: &[String],
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
-        Ok(CommandOutput(
-            shell
-                .executed_commands
-                .iter()
-                .enumerate()
-                .map(|(index, command)| format!("{:>5} {}", index + 1, command))
-                .collect::<Vec<String>>()
-                .join("\n"),
-        ))
+        let history = shell
+            .executed_commands
+            .iter()
+            .enumerate()
+            .map(|(index, command)| format!("{:>5} {}", index + 1, command))
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        Ok(CommandOutput(Some(history)))
     }
 }

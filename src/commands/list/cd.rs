@@ -28,9 +28,9 @@ impl Command for ChangeDirectoryCommand {
             shell.fs.change_directory(&args[0])
         };
         match change_result {
-            Ok(_) => Ok(CommandOutput("".to_string())),
+            Ok(_) => Ok(CommandOutput(None)),
             Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(_))) => Ok(
-                CommandOutput(format!("cd: {}: No such file or directory", args[0])),
+                CommandOutput(Some(format!("cd: {}: No such file or directory", args[0]))),
             ),
             Err(e) => Err(e),
         }

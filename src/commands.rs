@@ -34,4 +34,4 @@ pub trait Command {
 }
 
 #[derive(Debug)]
-pub struct CommandOutput(pub String);
+pub struct CommandOutput(pub Option<String>);

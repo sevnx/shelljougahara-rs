@@ -23,6 +23,6 @@ impl Command for ExitCommand {
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
         shell.active = false;
-        Ok(CommandOutput("".to_string()))
+        Ok(CommandOutput(None))
     }
 }

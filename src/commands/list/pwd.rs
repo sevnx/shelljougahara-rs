@@ -33,6 +33,6 @@ impl Command for PwdCommand {
             .expect("Failed to lock current directory")
             .path()?;
 
-        Ok(CommandOutput(path.display().to_string()))
+        Ok(CommandOutput(Some(path.display().to_string())))
     }
 }

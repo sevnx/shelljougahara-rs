@@ -22,6 +22,6 @@ impl Command for EchoCommand {
         args: &[String],
         _: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
-        Ok(CommandOutput(args.join(" ")))
+        Ok(CommandOutput(Some(args.join(" "))))
     }
 }
