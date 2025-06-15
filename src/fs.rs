@@ -72,33 +72,24 @@ impl FileSystem {
         file_system
     }
 
-    fn get_home_directory(&self) -> Result<Arc<Mutex<Inode>>, ShellError> {
-        let root_inode = self.root.lock().expect("Failed to lock root inode");
-        match root_inode.find_child("home") {
-            Some(home_directory) => Ok(home_directory),
-            None => Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                "Home directory does not exist".to_string(),
-            ))),
-        }
-    }
-
-    fn get_or_create_home_directory(&mut self) -> Result<Arc<Mutex<Inode>>, ShellError> {
+    fn create_home_directory(&mut self) -> Result<Arc<Mutex<Inode>>, ShellError> {
         let mut root_inode = self.root.lock().expect("Failed to lock root inode");
-        match root_inode.find_child("home") {
-            Some(home_directory) => Ok(home_directory),
-            None => {
-                let home_directory = root_inode.add_child(
-                    "home",
-                    InodeContent::Directory(Directory::new()),
-                    Arc::downgrade(&self.root),
-                )?;
-                Ok(home_directory)
-            }
-        }
+        root_inode.add_child(
+            "home",
+            InodeContent::Directory(Directory::new()),
+            Arc::downgrade(&self.root),
+        )
     }
 
     pub fn add_user(&mut self, username: &str) -> Result<UserId, ShellError> {
-        let home_directory = self.get_or_create_home_directory()?;
+        let home_directory = self
+            .find_absolute_inode("/home")
+            .or_else(|| self.create_home_directory().ok())
+            .ok_or_else(|| {
+                ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                    "Home directory does not exist".to_string(),
+                ))
+            })?;
         let user_id = self.users.add_user(username.to_string());
         let user_group_id = self.groups.add_group(username.to_string());
         let user = self.users.user_mut(user_id).expect("User not found");
@@ -153,7 +144,11 @@ impl FileSystem {
             DirectoryChange::Home(path) => match path.chars().nth(0) {
                 Some('/') | None => {
                     let current_user = self.users.user(self.current_user).expect("User not found");
-                    let home_dir = self.get_home_directory()?;
+                    let home_dir = self.find_absolute_inode("/home").ok_or_else(|| {
+                        ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                            "Home directory does not exist".to_string(),
+                        ))
+                    })?;
                     let user_dir =
                         path_map_to_err(self.find_relative_inode(home_dir, &current_user.name))?;
                     if path.is_empty() {
