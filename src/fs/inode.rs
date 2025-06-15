@@ -47,6 +47,10 @@ impl Inode {
         })
     }
 
+    pub fn parent(&self) -> Option<Weak<Mutex<Inode>>> {
+        self.parent.clone()
+    }
+
     /// Returns the path of the inode.
     ///
     /// # Errors

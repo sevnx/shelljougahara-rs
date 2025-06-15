@@ -1,13 +1,13 @@
 //! The virtual file system used by the shell.
 
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 
 use inode::{Inode, content::Directory};
 use users::{GroupStore, UserStore};
 
 use crate::{
     FilePermissions, InodeContent, InodeMetadata, UserId,
-    errors::{FileSystemError, ShellError, UserError},
+    errors::{FileSystemError, ShellError},
 };
 
 pub mod inode;
@@ -20,12 +20,10 @@ pub struct FileSystem {
     pub root: Arc<Mutex<Inode>>,
     pub users: UserStore,
     pub groups: GroupStore,
-    pub current_dir: Weak<Mutex<Inode>>,
-    pub current_user: UserId,
 }
 
 impl FileSystem {
-    fn new_as_root() -> Self {
+    pub fn new() -> Self {
         let mut groups = GroupStore::new();
         let mut users = UserStore::new();
 
@@ -51,25 +49,10 @@ impl FileSystem {
         ));
 
         Self {
-            current_dir: Arc::downgrade(&root),
             root,
             users,
             groups,
-            current_user: root_user_id,
         }
-    }
-
-    /// Creates a new file system for a given user, creating their home directory.
-    pub fn new_with_user(username: &str) -> Self {
-        let mut file_system = Self::new_as_root();
-        let user_id = file_system.add_user(username).expect("Failed to add user");
-        file_system
-            .change_user(user_id)
-            .expect("Failed to change user");
-        file_system
-            .change_directory("~")
-            .expect("Failed to change directory");
-        file_system
     }
 
     fn create_home_directory(&mut self) -> Result<Arc<Mutex<Inode>>, ShellError> {
@@ -105,95 +88,6 @@ impl FileSystem {
         Ok(user_id)
     }
 
-    pub fn change_user(&mut self, user_id: UserId) -> Result<(), ShellError> {
-        if self.users.user(user_id).is_none() {
-            Err(ShellError::User(UserError::UserNotFound))
-        } else {
-            self.current_user = user_id;
-            Ok(())
-        }
-    }
-
-    pub fn change_directory(&mut self, path: &str) -> Result<(), ShellError> {
-        let path_map_to_err = |option: Option<Arc<Mutex<Inode>>>| {
-            if let Some(dir) = option {
-                Ok(dir)
-            } else {
-                Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                    "Directory does not exist".to_string(),
-                )))
-            }
-        };
-
-        let directory_change =
-            parse_directory_change(path).expect("Failed to parse directory change");
-        let new_dir = match directory_change {
-            DirectoryChange::Absolute(path) => Some(path_map_to_err(
-                self.find_relative_inode(self.root.clone(), &path),
-            )?),
-            DirectoryChange::Relative(path) => {
-                let current_dir = self.current_dir.upgrade().ok_or_else(|| {
-                    ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                        "Current directory does not exist".to_string(),
-                    ))
-                })?;
-                Some(path_map_to_err(
-                    self.find_relative_inode(current_dir, &path),
-                )?)
-            }
-            DirectoryChange::Home(path) => match path.chars().nth(0) {
-                Some('/') | None => {
-                    let current_user = self.users.user(self.current_user).expect("User not found");
-                    let home_dir = self.find_absolute_inode("/home").ok_or_else(|| {
-                        ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                            "Home directory does not exist".to_string(),
-                        ))
-                    })?;
-                    let user_dir =
-                        path_map_to_err(self.find_relative_inode(home_dir, &current_user.name))?;
-                    if path.is_empty() {
-                        Some(user_dir)
-                    } else {
-                        Some(path_map_to_err(self.find_relative_inode(user_dir, &path))?)
-                    }
-                }
-                Some(_) => return Err(ShellError::FileSystem(FileSystemError::IncorrectPath)),
-            },
-            DirectoryChange::Parent => {
-                let current_dir = self.current_dir.upgrade().ok_or_else(|| {
-                    ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                        "Current directory does not exist".to_string(),
-                    ))
-                })?;
-                if let Some(parent_dir) = current_dir
-                    .lock()
-                    .expect("Failed to lock current directory")
-                    .parent
-                    .clone()
-                {
-                    let parent_dir = parent_dir.upgrade().ok_or_else(|| {
-                        ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                            "Parent directory does not exist".to_string(),
-                        ))
-                    })?;
-                    Some(parent_dir)
-                } else {
-                    // We are already at the root directory
-                    None
-                }
-            }
-            DirectoryChange::Current => None,
-            DirectoryChange::Previous => {
-                // TODO: History implementation (if even needed)
-                None
-            }
-        };
-        if let Some(new_dir) = new_dir {
-            self.current_dir = Arc::downgrade(&new_dir);
-        }
-        Ok(())
-    }
-
     pub fn find_absolute_inode(&self, path: &str) -> Option<Arc<Mutex<Inode>>> {
         self.find_relative_inode(self.root.clone(), path)
     }
@@ -221,35 +115,8 @@ impl FileSystem {
     }
 }
 
-pub enum DirectoryChange {
-    Absolute(String),
-    Relative(String),
-    Home(String),
-    Parent,
-    Current,
-    Previous,
-}
-
-pub fn parse_directory_change(path: &str) -> Result<DirectoryChange, ShellError> {
-    // Handle special cases (ugly)
-    // TODO: Handle this better
-    if path == ".." || path == "../" {
-        return Ok(DirectoryChange::Parent);
-    }
-    if path == "." || path == "./" {
-        return Ok(DirectoryChange::Current);
-    }
-    if path == "~" || path == "~/" || path.is_empty() {
-        return Ok(DirectoryChange::Home(String::new()));
-    }
-    if path == "-" {
-        return Ok(DirectoryChange::Previous);
-    }
-
-    match path.chars().next() {
-        Some('/') => Ok(DirectoryChange::Absolute(path.to_string())),
-        Some('~') => Ok(DirectoryChange::Home(path[1..].to_string())),
-        Some(_) => Ok(DirectoryChange::Relative(path.to_string())),
-        None => Ok(DirectoryChange::Home(String::new())),
+impl Default for FileSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }

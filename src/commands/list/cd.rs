@@ -22,12 +22,10 @@ impl Command for ChangeDirectoryCommand {
         args: &[String],
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
-        let change_result = if args.is_empty() {
-            shell.fs.change_directory("~")
-        } else {
-            shell.fs.change_directory(&args[0])
-        };
-        match change_result {
+        match shell
+            .current_session
+            .change_directory(&shell.fs, args.first().unwrap_or(&String::new()))
+        {
             Ok(_) => Ok(CommandOutput(None)),
             Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(_))) => Ok(
                 CommandOutput(Some(format!("cd: {}: No such file or directory", args[0]))),

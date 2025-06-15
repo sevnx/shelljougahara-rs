@@ -9,7 +9,7 @@ pub enum ShellError {
     #[error(transparent)]
     FileSystem(FileSystemError),
     #[error(transparent)]
-    User(UserError),
+    Session(SessionError),
     #[error("Shell is not active")]
     ShellNotActive,
 }
@@ -26,10 +26,16 @@ pub enum FileSystemError {
     IncorrectPath,
     #[error("Entry not found: {0}")]
     EntryNotFound(String),
+    #[error("Failed to get parent directory")]
+    FailedToGetParent,
 }
 
 #[derive(Error, Debug, PartialEq)]
-pub enum UserError {
+pub enum SessionError {
     #[error("User not found")]
     UserNotFound,
+    #[error("No previous working directory")]
+    NoPreviousWorkingDirectory,
+    #[error("Previous working directory does not exist")]
+    PreviousWorkingDirectoryDoesNotExist,
 }

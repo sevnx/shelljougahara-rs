@@ -23,7 +23,8 @@ impl Command for HistoryCommand {
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
         let history = shell
-            .executed_commands
+            .current_session
+            .get_history()
             .iter()
             .enumerate()
             .map(|(index, command)| format!("{:>5} {}", index + 1, command))

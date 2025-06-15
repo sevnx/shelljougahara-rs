@@ -1,23 +1,30 @@
 //! The shell structure, the main unit of the shell environment.
 
+use std::path::PathBuf;
+
 use crate::{
     commands::{Command, CommandOutput, get_commands},
     errors::ShellError,
     fs::FileSystem,
+    sessions::Session,
 };
 
 #[derive(Debug, Clone)]
 pub struct Shell {
     pub fs: FileSystem,
-    pub executed_commands: Vec<String>,
+    pub current_session: Session,
     pub active: bool,
 }
 
 impl Shell {
     pub fn new_with_user(username: &str) -> Self {
+        let mut fs = FileSystem::new();
+        let user_id = fs.add_user(username).expect("Failed to add user");
+        let current_session = Session::new(PathBuf::from(format!("/home/{}", username)), user_id);
+
         Self {
-            fs: FileSystem::new_with_user(username),
-            executed_commands: Vec::new(),
+            fs,
+            current_session,
             active: true,
         }
     }
@@ -40,7 +47,8 @@ impl Shell {
         let command = get_commands()
             .get(cmd_str.as_str())
             .ok_or_else(|| ShellError::Internal(format!("Unknown command: {}", cmd_str)))?;
-        self.executed_commands.push(command.name().to_string());
+
+        self.current_session.add_to_history(command.name());
 
         match command.execute(args, self) {
             Ok(output) => Ok(output),

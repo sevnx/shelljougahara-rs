@@ -7,8 +7,8 @@ pub type GroupId = u32;
 
 #[derive(Debug, Clone)]
 pub struct UserStore {
-    pub users: HashMap<UserId, User>,
-    pub next_user_id: UserId,
+    users: HashMap<UserId, User>,
+    next_user_id: UserId,
 }
 
 impl UserStore {

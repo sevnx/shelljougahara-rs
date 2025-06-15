@@ -23,16 +23,11 @@ impl Command for PwdCommand {
         _: &[String],
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
-        let path =
-            shell.fs.current_dir.upgrade().ok_or_else(|| {
-                ShellError::Internal("Current directory does not exist".to_string())
-            })?;
-
-        let path = path
-            .lock()
-            .expect("Failed to lock current directory")
-            .path()?;
-
-        Ok(CommandOutput(Some(path.display().to_string())))
+        let path = shell
+            .current_session
+            .get_current_working_directory()
+            .display()
+            .to_string();
+        Ok(CommandOutput(Some(path)))
     }
 }
