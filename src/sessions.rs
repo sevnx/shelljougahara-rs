@@ -29,7 +29,7 @@ impl Session {
     }
 
     pub fn change_directory(&mut self, fs: &FileSystem, path: &str) -> Result<(), ShellError> {
-        let directory_change = self.parse_directory_change(fs, path)?;
+        let directory_change = self.parse_directory_change(fs, path);
         let prev_working_directory = self.current_working_directory.clone();
         match directory_change {
             DirectoryChange::Path(path) => {
@@ -43,42 +43,34 @@ impl Session {
             DirectoryChange::Parent => {
                 let current =
                     fs.find_absolute_inode(&self.current_working_directory.display().to_string());
-                match current {
-                    Some(current) => {
-                        let current = current.lock().expect("Failed to lock inode");
-                        match current.parent() {
-                            Some(parent) => {
-                                self.current_working_directory = parent
-                                    .upgrade()
-                                    .expect("Failed to get parent")
-                                    .lock()
-                                    .expect("Failed to lock inode")
-                                    .path()?;
-                            }
-                            None => {
-                                // This could happen if the current working directory is the root
-                            }
-                        }
+                if let Some(current) = current {
+                    let current = current.lock().expect("Failed to lock inode");
+                    if let Some(parent) = current.parent() {
+                        self.current_working_directory = parent
+                            .upgrade()
+                            .expect("Failed to get parent")
+                            .lock()
+                            .expect("Failed to lock inode")
+                            .path()?;
+                    } else {
+                        // This could happen if the current working directory is the root
                     }
-                    None => {
-                        // The current working directory does not exist anymore, we try to get
-                        // parent by removing the last component
-                        let mut path = self.current_working_directory.clone();
-                        path.pop();
-                        let current = fs.find_absolute_inode(&path.display().to_string());
-                        match current {
-                            Some(current) => {
-                                self.current_working_directory =
-                                    current.lock().expect("Failed to lock inode").path()?;
-                            }
-                            None => {
-                                // Even the parent does not exist, tried with Bash and it errored
-                                // cd: error retrieving current directory:
-                                // getcwd: cannot access parent directories: No such file or directory
-                                return Err(ShellError::FileSystem(
-                                    FileSystemError::FailedToGetParent,
-                                ));
-                            }
+                } else {
+                    // The current working directory does not exist anymore, we try to get
+                    // parent by removing the last component
+                    let mut path = self.current_working_directory.clone();
+                    path.pop();
+                    let current = fs.find_absolute_inode(&path.display().to_string());
+                    match current {
+                        Some(current) => {
+                            self.current_working_directory =
+                                current.lock().expect("Failed to lock inode").path()?;
+                        }
+                        None => {
+                            // Even the parent does not exist, tried with Bash and it errored
+                            // cd: error retrieving current directory:
+                            // getcwd: cannot access parent directories: No such file or directory
+                            return Err(ShellError::FileSystem(FileSystemError::FailedToGetParent));
                         }
                     }
                 }
@@ -112,43 +104,37 @@ impl Session {
         PathBuf::from(format!("/home/{}", user.name))
     }
 
-    fn parse_directory_change(
-        &self,
-        fs: &FileSystem,
-        path: &str,
-    ) -> Result<DirectoryChange, ShellError> {
+    fn parse_directory_change(&self, fs: &FileSystem, path: &str) -> DirectoryChange {
         if path == ".." || path == "../" {
-            return Ok(DirectoryChange::Parent);
+            return DirectoryChange::Parent;
         }
         if path == "." || path == "./" {
-            return Ok(DirectoryChange::Current);
+            return DirectoryChange::Current;
         }
-        if path.starts_with("/") {
-            return Ok(DirectoryChange::Path(path.to_string()));
+        if path.starts_with('/') {
+            return DirectoryChange::Path(path.to_string());
         }
         if path == "-" {
-            return Ok(DirectoryChange::Previous);
+            return DirectoryChange::Previous;
         }
         if path == "~" || path.is_empty() {
-            return Ok(DirectoryChange::Path(
-                self.get_user_home_directory(fs).display().to_string(),
-            ));
+            return DirectoryChange::Path(self.get_user_home_directory(fs).display().to_string());
         }
         if path.starts_with("~/") {
-            return Ok(DirectoryChange::Path(format!(
+            return DirectoryChange::Path(format!(
                 "{}/{}",
                 self.get_user_home_directory(fs).display(),
                 // Remove the leading ~ and /
                 path.strip_prefix("~/")
                     .expect("Failed to strip prefix that should be there")
-            )));
+            ));
         }
         // If not a special case, it is a relative path
-        Ok(DirectoryChange::Path(format!(
+        DirectoryChange::Path(format!(
             "{}/{}",
             self.current_working_directory.display(),
             path
-        )))
+        ))
     }
 
     pub fn change_user(&mut self, fs: &FileSystem, user_id: UserId) -> Result<(), ShellError> {

@@ -12,11 +12,13 @@ impl Default for FilePermissions {
 }
 
 impl FilePermissions {
+    #[must_use]
     pub fn from_mode(mode: u32) -> Self {
         Self { mode }
     }
 
-    pub fn from_permissions(user: Permission, group: Permission, other: Permission) -> Self {
+    #[must_use]
+    pub fn from_permissions(user: &Permission, group: &Permission, other: &Permission) -> Self {
         FilePermissionBuilder::new()
             .user_permission(user.read, user.write, user.execute)
             .group_permission(group.read, group.write, group.execute)
@@ -28,6 +30,7 @@ impl FilePermissions {
         self.mode = mode;
     }
 
+    #[must_use]
     pub fn mode(&self) -> u32 {
         self.mode
     }

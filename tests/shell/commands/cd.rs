@@ -23,7 +23,7 @@ fn test_cd_back_and_forth() {
     let output = shell.execute("cd ~").expect("Failed to execute cd");
     assert_eq!(output.0, None); // No output expected
     let pwd_output = shell.execute("pwd").expect("Failed to execute pwd");
-    assert_eq!(pwd_output.0, Some(format!("/home/{}", username)));
+    assert_eq!(pwd_output.0, Some(format!("/home/{username}")));
     // Go to parent (home directory)
     let output = shell.execute("cd ..").expect("Failed to execute cd");
     assert_eq!(output.0, None); // No output expected

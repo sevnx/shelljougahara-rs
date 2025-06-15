@@ -22,7 +22,7 @@ impl Directory {
         }
     }
 
-    pub fn add_child(&mut self, child: Arc<Mutex<Inode>>) -> Result<(), ShellError> {
+    pub fn add_child(&mut self, child: &Arc<Mutex<Inode>>) -> Result<(), ShellError> {
         let name = child.lock().expect("Failed to lock inode").name.clone();
         match self.children.entry(name.clone()) {
             Entry::Vacant(entry) => {

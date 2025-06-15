@@ -60,7 +60,7 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(id: UserId, name: String) -> Self {
+    #[must_use] pub fn new(id: UserId, name: String) -> Self {
         Self {
             id,
             name,

@@ -47,6 +47,7 @@ impl Inode {
         })
     }
 
+    #[must_use]
     pub fn parent(&self) -> Option<Weak<Mutex<Inode>>> {
         self.parent.clone()
     }
@@ -93,7 +94,7 @@ impl Inode {
                     Some(parent_ref),
                 )?;
                 let inode_ref = Arc::new(Mutex::new(inode));
-                directory.add_child(inode_ref.clone())?;
+                directory.add_child(&inode_ref)?;
                 Ok(inode_ref)
             }
             _ => Err(ShellError::Internal(
@@ -119,6 +120,7 @@ impl Inode {
         }
     }
 
+    #[must_use]
     pub fn find_child(&self, child_name: &str) -> Option<Arc<Mutex<Inode>>> {
         match self.content {
             InodeContent::Directory(ref directory) => directory.find_child(child_name),
