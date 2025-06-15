@@ -48,3 +48,21 @@ fn test_non_existent_directory() {
         Some("cd: /non/existent/directory: No such file or directory".to_string())
     );
 }
+
+#[test]
+fn test_cd_previous() {
+    let username = "test";
+    let mut shell = Shell::new_with_user(username);
+    let output = shell.execute("cd /home").expect("Failed to execute cd");
+    assert_eq!(output.0, None); // No output expected
+    let pwd_output = shell.execute("pwd").expect("Failed to execute pwd");
+    assert_eq!(pwd_output.0, Some("/home".to_string()));
+    let output = shell.execute("cd /").expect("Failed to execute cd");
+    assert_eq!(output.0, None); // No output expected
+    let pwd_output = shell.execute("pwd").expect("Failed to execute pwd");
+    assert_eq!(pwd_output.0, Some("/".to_string()));
+    let output = shell.execute("cd -").expect("Failed to execute cd");
+    assert_eq!(output.0, None); // No output expected
+    let pwd_output = shell.execute("pwd").expect("Failed to execute pwd");
+    assert_eq!(pwd_output.0, Some("/home".to_string()));
+}
