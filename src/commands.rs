@@ -1,4 +1,4 @@
-//! Commands, the things that the shell can execute.
+//! Representations of commands, elements that can be executed in the shell context.
 
 use std::{collections::HashMap, sync::OnceLock};
 

@@ -1,10 +1,10 @@
-//! A simulated shell written in Rust, made for educational purposes, first and foremost in the
-//! context of the [DesCode](https://github.com/desforgehub/DesCode) project.
+#![doc = include_str!("../README.md")]
 
 // Crate modules
 mod commands;
 mod errors;
 mod fs;
+mod sessions;
 mod shell;
 
 // Re-export

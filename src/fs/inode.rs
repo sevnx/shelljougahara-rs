@@ -1,4 +1,4 @@
-//! Inode is a file system object that represents an entry in the file system.
+//! An inode is a file system object that represents an entry in the file system.
 
 use std::{
     path::PathBuf,

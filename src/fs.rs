@@ -1,4 +1,4 @@
-//! Simple representation of a file system.
+//! The virtual file system used by the shell.
 
 use std::sync::{Arc, Mutex, Weak};
 

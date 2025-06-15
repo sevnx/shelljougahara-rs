@@ -1,4 +1,4 @@
-//! The list of shell commands supported by the shell.
+//! Listing and implementation of the supported shell commands.
 
 use strum_macros::EnumIter;
 

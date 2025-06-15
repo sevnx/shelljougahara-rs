@@ -1,4 +1,4 @@
-//! The shell, the main entry point for the shell.
+//! The shell structure, the main unit of the shell environment.
 
 use crate::{
     commands::{Command, CommandOutput, get_commands},
