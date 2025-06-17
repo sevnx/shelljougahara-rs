@@ -1,6 +1,9 @@
 //! The virtual file system used by the shell.
 
-use std::sync::{Arc, Mutex};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use inode::{Inode, content::Directory};
 use users::{GroupStore, UserStore};
@@ -57,36 +60,80 @@ impl FileSystem {
         }
     }
 
-    fn create_home_directory(&mut self) -> Result<Arc<Mutex<Inode>>, ShellError> {
-        let mut root_inode = self.root.lock().expect("Failed to lock root inode");
-        root_inode.add_child(
-            "home",
-            InodeContent::Directory(Directory::new()),
-            Arc::downgrade(&self.root),
-        )
+    pub fn create_directory(&mut self, path: &str) -> Result<Arc<Mutex<Inode>>, ShellError> {
+        let (components, last_component) = path.split_at(path.rfind('/').unwrap_or(0) + 1);
+        let mut current_inode = Some(self.root.clone());
+        for component in components.split('/') {
+            let inode = current_inode.take().expect("Inode is empty");
+            let inode_copy = inode.clone();
+            let inner_inode = inode.lock().expect("Failed to lock inner inode");
+            match component {
+                "" | "." => {
+                    current_inode = Some(inode_copy);
+                }
+                ".." => match inner_inode.parent() {
+                    Some(parent) => {
+                        let parent_arc = parent.upgrade().expect("Failed to upgrade parent");
+                        current_inode = Some(parent_arc);
+                    }
+                    None => {
+                        if inner_inode.path()? == PathBuf::from("/") {
+                            current_inode = Some(inode_copy);
+                        } else {
+                            return Err(ShellError::FileSystem(
+                                FileSystemError::DirectoryNotFound(
+                                    "Parent directory does not exist".to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                },
+                path => match inner_inode.find_child(path) {
+                    Some(child_inode) => {
+                        let child_content = child_inode
+                            .lock()
+                            .expect("Failed to lock child inode")
+                            .content
+                            .clone();
+                        match child_content {
+                            InodeContent::Directory(_) => {
+                                current_inode = Some(child_inode);
+                            }
+                            _ => {
+                                return Err(ShellError::FileSystem(
+                                    FileSystemError::EntryAlreadyExists(path.to_string()),
+                                ));
+                            }
+                        }
+                    }
+                    None => {
+                        return Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                            path.to_string(),
+                        )));
+                    }
+                },
+            }
+        }
+        let current_inode = current_inode.expect("Failed to lock current inode");
+        current_inode
+            .lock()
+            .expect("Failed to lock inode")
+            .add_child(
+                last_component,
+                InodeContent::Directory(Directory::new()),
+                Arc::downgrade(&current_inode),
+            )
     }
 
     pub fn add_user(&mut self, username: &str) -> Result<UserId, ShellError> {
-        let home_directory = self
-            .find_absolute_inode("/home")
-            .or_else(|| self.create_home_directory().ok())
-            .ok_or_else(|| {
-                ShellError::FileSystem(FileSystemError::DirectoryNotFound(
-                    "Home directory does not exist".to_string(),
-                ))
-            })?;
+        if self.find_absolute_inode("/home").is_none() {
+            self.create_directory("/home")?;
+        }
         let user_id = self.users.add_user(username.to_string());
         let user_group_id = self.groups.add_group(username.to_string());
         let user = self.users.user_mut(user_id).expect("User not found");
         user.add_group(user_group_id);
-        home_directory
-            .lock()
-            .expect("Failed to lock home directory")
-            .add_child(
-                username,
-                InodeContent::Directory(Directory::new()),
-                Arc::downgrade(&home_directory),
-            )?;
+        self.create_directory(&format!("/home/{}", username))?;
         Ok(user_id)
     }
 
