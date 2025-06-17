@@ -12,6 +12,7 @@ use crate::{
 
 pub mod inode;
 pub mod permissions;
+pub mod resolver;
 pub mod users;
 
 /// The file system
@@ -91,29 +92,7 @@ impl FileSystem {
 
     #[must_use]
     pub fn find_absolute_inode(&self, path: &str) -> Option<Arc<Mutex<Inode>>> {
-        self.find_relative_inode(self.root.clone(), path)
-    }
-
-    pub fn find_relative_inode(
-        &self,
-        base: Arc<Mutex<Inode>>,
-        relative_path: &str,
-    ) -> Option<Arc<Mutex<Inode>>> {
-        let mut current_inode = base;
-        for component in relative_path.split('/') {
-            if component.is_empty() {
-                continue;
-            }
-            let child_inode = current_inode
-                .lock()
-                .expect("Failed to lock inode")
-                .find_child(component);
-            match child_inode {
-                Some(inode) => current_inode = inode,
-                None => return None,
-            }
-        }
-        Some(current_inode)
+        find_relative_inode(self.root.clone(), path)
     }
 }
 
@@ -121,4 +100,25 @@ impl Default for FileSystem {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn find_relative_inode(
+    base: Arc<Mutex<Inode>>,
+    relative_path: &str,
+) -> Option<Arc<Mutex<Inode>>> {
+    let mut current_inode = base;
+    for component in relative_path.split('/') {
+        if component.is_empty() {
+            continue;
+        }
+        let child_inode = current_inode
+            .lock()
+            .expect("Failed to lock inode")
+            .find_child(component);
+        match child_inode {
+            Some(inode) => current_inode = inode,
+            None => return None,
+        }
+    }
+    Some(current_inode)
 }
