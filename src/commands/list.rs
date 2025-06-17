@@ -8,6 +8,7 @@ pub mod cd;
 pub mod echo;
 pub mod exit;
 pub mod history;
+pub mod mkdir;
 pub mod pwd;
 
 #[derive(EnumIter)]
@@ -18,4 +19,5 @@ pub enum CommandList {
     History(list::history::HistoryCommand),
     Echo(list::echo::EchoCommand),
     Exit(list::exit::ExitCommand),
+    MakeDirectory(list::mkdir::MakeDirectoryCommand),
 }

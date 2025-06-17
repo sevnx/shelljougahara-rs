@@ -29,6 +29,16 @@ impl Session {
         }
     }
 
+    pub fn create_directory(&mut self, fs: &mut FileSystem, path: &Path) -> Result<(), ShellError> {
+        let resolved_path = resolve_path(
+            path,
+            &self.get_user_home_directory(fs),
+            &self.current_working_directory,
+        );
+        fs.create_directory(&resolved_path.display().to_string())?;
+        Ok(())
+    }
+
     pub fn change_directory(&mut self, fs: &FileSystem, path: &Path) -> Result<(), ShellError> {
         let prev_working_directory = self.current_working_directory.clone();
 
