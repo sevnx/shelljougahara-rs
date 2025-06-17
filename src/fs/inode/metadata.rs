@@ -17,7 +17,8 @@ pub struct InodeMetadata {
 }
 
 impl InodeMetadata {
-    #[must_use] pub fn new(permissions: FilePermissions, owner: UserId, group: GroupId) -> Self {
+    #[must_use]
+    pub fn new(permissions: FilePermissions, owner: UserId, group: GroupId) -> Self {
         Self {
             permissions,
             owner,

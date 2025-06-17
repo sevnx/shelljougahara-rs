@@ -23,7 +23,8 @@ pub struct FileSystem {
 }
 
 impl FileSystem {
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         let mut groups = GroupStore::new();
         let mut users = UserStore::new();
 
@@ -88,7 +89,8 @@ impl FileSystem {
         Ok(user_id)
     }
 
-    #[must_use] pub fn find_absolute_inode(&self, path: &str) -> Option<Arc<Mutex<Inode>>> {
+    #[must_use]
+    pub fn find_absolute_inode(&self, path: &str) -> Option<Arc<Mutex<Inode>>> {
         self.find_relative_inode(self.root.clone(), path)
     }
 

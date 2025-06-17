@@ -17,7 +17,8 @@ pub struct Shell {
 }
 
 impl Shell {
-    #[must_use] pub fn new_with_user(username: &str) -> Self {
+    #[must_use]
+    pub fn new_with_user(username: &str) -> Self {
         let mut fs = FileSystem::new();
         let user_id = fs.add_user(username).expect("Failed to add user");
         let current_session = Session::new(PathBuf::from(format!("/home/{username}")), user_id);
