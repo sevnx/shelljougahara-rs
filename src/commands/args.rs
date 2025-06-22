@@ -3,6 +3,7 @@
 use strum_macros::Display;
 
 /// Possible arguments of a command or flag, with their values
+#[derive(Debug, PartialEq)]
 pub enum Argument {
     String(String),
     Integer(i64),

@@ -30,17 +30,18 @@ impl ExecutableCommand for HistoryCommand {
         args: Option<Argument>,
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
-        let limit = match args {
-            Some(Argument::Integer(limit)) => limit,
-            _ => return Err(ShellError::Internal("Invalid argument".to_string())),
+        let history = shell.current_session.get_history();
+
+        let history_iter = history.iter().enumerate();
+
+        let history = match args {
+            Some(Argument::Integer(limit)) => history_iter.take(limit as usize).collect::<Vec<_>>(),
+            Some(_) => return Err(ShellError::Internal("Invalid argument".to_string())),
+            None => history_iter.collect::<Vec<_>>(),
         };
 
-        let history = shell
-            .current_session
-            .get_history()
-            .iter()
-            .enumerate()
-            .take(limit as usize)
+        let history = history
+            .into_iter()
             .map(|(index, command)| format!("{:>5} {}", index + 1, command))
             .collect::<Vec<String>>()
             .join("\n");

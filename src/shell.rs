@@ -46,7 +46,8 @@ impl Shell {
             command,
             flags,
             args,
-        } = commands::Command::from_tokens(tokens).unwrap();
+        } = commands::Command::from_tokens(tokens)
+            .map_err(|e| ShellError::Internal(e.to_string()))?;
 
         self.current_session.add_to_history(command.name());
 

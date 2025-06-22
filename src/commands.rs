@@ -248,7 +248,15 @@ impl CommandParser {
                             }
                             ArgumentKind::List(argument_kinds) => {
                                 let mut list_args: Vec<Argument> = Vec::new();
-                                for (i, argument_kind) in argument_kinds.iter().enumerate() {
+                                let mut arg_kinds = argument_kinds.iter().enumerate();
+                                let argument =
+                                    parse_string_argument(arg, arg_kinds.next().unwrap().1)
+                                        .map_err(|e| {
+                                            Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                        })?;
+                                list_args.push(argument);
+
+                                for (i, argument_kind) in arg_kinds {
                                     let arg = args_iter
                                         .next()
                                         .ok_or(Error::MissingCommandArgument(i as u32))?;
@@ -262,6 +270,11 @@ impl CommandParser {
                             }
                             ArgumentKind::Enumeration(argument_kind) => {
                                 let mut list_args: Vec<Argument> = Vec::new();
+                                let argument =
+                                    parse_string_argument(arg, argument_kind).map_err(|e| {
+                                        Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                    })?;
+                                list_args.push(argument);
                                 for arg in args_iter.by_ref() {
                                     let argument = parse_string_argument(arg, argument_kind)
                                         .map_err(|e| {
