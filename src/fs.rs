@@ -141,6 +141,19 @@ impl FileSystem {
     pub fn find_absolute_inode(&self, path: &str) -> Option<Arc<Mutex<Inode>>> {
         find_relative_inode(self.root.clone(), path)
     }
+
+    pub fn remove_inode(&mut self, path: &str) -> Result<(), ShellError> {
+        let inode = self
+            .find_absolute_inode(path)
+            .ok_or(ShellError::FileSystem(FileSystemError::EntryNotFound(
+                path.to_string(),
+            )))?;
+        inode
+            .lock()
+            .expect("Failed to lock inode")
+            .remove_child(path)?;
+        Ok(())
+    }
 }
 
 impl Default for FileSystem {

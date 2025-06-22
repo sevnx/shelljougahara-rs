@@ -14,3 +14,10 @@ pub enum InodeContent {
     Directory(Directory),
     Link(Link),
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InodeType {
+    File,
+    Directory,
+    Link,
+}

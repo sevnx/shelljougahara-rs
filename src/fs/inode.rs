@@ -8,7 +8,10 @@ use std::{
 use content::InodeContent;
 use metadata::InodeMetadata;
 
-use crate::errors::{FileSystemError, ShellError};
+use crate::{
+    errors::{FileSystemError, ShellError},
+    fs::inode::content::InodeType,
+};
 
 pub mod content;
 pub mod metadata;
@@ -45,6 +48,15 @@ impl Inode {
             metadata,
             parent,
         })
+    }
+
+    #[must_use]
+    pub fn inode_type(&self) -> InodeType {
+        match self.content {
+            InodeContent::File(_) => InodeType::File,
+            InodeContent::Directory(_) => InodeType::Directory,
+            InodeContent::Link(_) => InodeType::Link,
+        }
     }
 
     #[must_use]

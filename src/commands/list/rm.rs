@@ -1,41 +1,35 @@
-//! The print working directory command.
+//! Remove a file or directory.
 
 use crate::{
+    ShellError,
     commands::{
         Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
         flags::FlagDefinition,
     },
-    errors::ShellError,
 };
 
 #[derive(Default, Clone, Copy)]
-pub struct PwdCommand;
+pub struct RemoveCommand;
 
-impl ExecutableCommand for PwdCommand {
+impl ExecutableCommand for RemoveCommand {
     fn name(&self) -> &'static str {
-        "pwd"
+        "rm"
     }
 
     fn flags(&self) -> FlagDefinition {
-        // TODO: Maybe add `-L` and `-P` flags.
         FlagDefinition::new()
     }
 
     fn args(&self) -> Option<ArgumentKind> {
-        None
+        Some(ArgumentKind::Enumeration(Box::new(ArgumentKind::String)))
     }
 
     fn execute(
         &self,
         _: Flags,
         _: Option<Argument>,
-        shell: &mut crate::shell::Shell,
+        _: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
-        let path = shell
-            .current_session
-            .get_current_working_directory()
-            .display()
-            .to_string();
-        Ok(CommandOutput(Some(path)))
+        todo!()
     }
 }

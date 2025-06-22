@@ -7,8 +7,8 @@ fn test_mkdir() {
     let mkdir = shell
         .execute("mkdir test")
         .expect("Failed to execute mkdir");
-    let cd = shell.execute("cd test").expect("Failed to execute cd");
     assert_eq!(mkdir.0, None);
+    let cd = shell.execute("cd test").expect("Failed to execute cd");
     assert_eq!(cd.0, None);
     let pwd = shell.execute("pwd").expect("Failed to execute pwd");
     assert_eq!(pwd.0, Some(format!("/home/{username}/test")));

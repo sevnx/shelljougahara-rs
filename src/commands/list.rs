@@ -10,10 +10,11 @@ pub mod exit;
 pub mod history;
 pub mod mkdir;
 pub mod pwd;
+pub mod rm;
 
-#[derive(EnumIter)]
+#[derive(EnumIter, Clone, Copy)]
 #[enum_dispatch::enum_dispatch]
-pub enum CommandList {
+pub enum Commands {
     Pwd(list::pwd::PwdCommand),
     Cd(list::cd::ChangeDirectoryCommand),
     History(list::history::HistoryCommand),

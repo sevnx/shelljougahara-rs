@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    commands::{Command, CommandOutput, get_commands},
+    commands::{self, Command, CommandOutput, ExecutableCommand as CommandTrait},
     errors::ShellError,
     fs::FileSystem,
     sessions::Session,
@@ -41,17 +41,16 @@ impl Shell {
         }
         let tokens = shlex::split(command)
             .ok_or_else(|| ShellError::Internal("Failed to parse command".to_string()))?;
-        let (cmd_str, args) = tokens
-            .split_first()
-            .ok_or_else(|| ShellError::Internal("Failed to get command from tokens".to_string()))?;
 
-        let command = get_commands()
-            .get(cmd_str.as_str())
-            .ok_or_else(|| ShellError::Internal(format!("Unknown command: {cmd_str}")))?;
+        let Command {
+            command,
+            flags,
+            args,
+        } = commands::Command::from_tokens(tokens).unwrap();
 
         self.current_session.add_to_history(command.name());
 
-        match command.execute(args, self) {
+        match command.execute(flags, args, self) {
             Ok(output) => Ok(output),
             Err(error) => Err(error),
         }
