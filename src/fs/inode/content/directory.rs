@@ -22,6 +22,10 @@ impl Directory {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.children.is_empty()
+    }
+
     pub fn add_child(&mut self, child: &Arc<Mutex<Inode>>) -> Result<(), ShellError> {
         let name = child.lock().expect("Failed to lock inode").name.clone();
         match self.children.entry(name.clone()) {

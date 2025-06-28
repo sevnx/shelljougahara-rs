@@ -4,7 +4,7 @@ use crate::{
     commands::{
         Argument, CommandOutput, ExecutableCommand, Flags,
         args::{ArgumentKind, BasicArgumentKind},
-        flags::FlagDefinition,
+        flags::{FlagDefinition, FlagDefinitionBuilder},
     },
     errors::ShellError,
 };
@@ -18,7 +18,7 @@ impl ExecutableCommand for ExitCommand {
     }
 
     fn flags(&self) -> FlagDefinition {
-        FlagDefinition::new()
+        FlagDefinitionBuilder::new().into_flag_definition()
     }
 
     fn args(&self) -> Option<ArgumentKind> {

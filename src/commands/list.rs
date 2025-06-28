@@ -21,4 +21,5 @@ pub enum Commands {
     Echo(list::echo::EchoCommand),
     Exit(list::exit::ExitCommand),
     MakeDirectory(list::mkdir::MakeDirectoryCommand),
+    Remove(list::rm::RemoveCommand),
 }

@@ -25,6 +25,7 @@ pub enum ArgumentKind {
     Basic(BasicArgumentKind),
     /// A list of arguments of different types
     /// Example - arguments to chmod : `chmod 755 file.txt`
+    #[allow(unused)]
     List(Vec<BasicArgumentKind>),
     /// An enumeration of arguments
     /// Example - argument to rm : `rm file1.txt file2.txt`

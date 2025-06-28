@@ -6,3 +6,4 @@ mod exit;
 mod history;
 mod mkdir;
 mod pwd;
+mod rm;

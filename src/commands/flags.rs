@@ -34,10 +34,8 @@ pub struct FlagDefinition {
 }
 
 impl FlagDefinition {
-    pub fn new() -> Self {
-        Self {
-            flags: HashSet::new(),
-        }
+    pub fn new(flags: HashSet<FlagSpecification>) -> Self {
+        Self { flags }
     }
 
     pub fn get_flag_longhand(&self, name: &str) -> Option<&FlagSpecification> {
@@ -48,12 +46,29 @@ impl FlagDefinition {
         self.flags.iter().find(|f| f.short_hand == Some(name))
     }
 
-    pub fn add_flag(&mut self, flag: FlagSpecification) {
-        self.flags.insert(flag);
-    }
-
     pub fn into_flags(self) -> HashSet<FlagSpecification> {
         self.flags
+    }
+}
+
+pub struct FlagDefinitionBuilder {
+    flags: HashSet<FlagSpecification>,
+}
+
+impl FlagDefinitionBuilder {
+    pub fn new() -> Self {
+        Self {
+            flags: HashSet::new(),
+        }
+    }
+
+    pub fn with_flag(mut self, flag: FlagSpecification) -> Self {
+        self.flags.insert(flag);
+        self
+    }
+
+    pub fn into_flag_definition(self) -> FlagDefinition {
+        FlagDefinition::new(self.flags)
     }
 }
 

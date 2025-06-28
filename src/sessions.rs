@@ -3,10 +3,13 @@
 //! A session represents a shell instance, a single file system can have multiple sessions.
 //! It contains a reference to the file system, and information like the current user and directory.
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 
 use crate::{
-    FileSystem, ShellError, UserId,
+    FileSystem, Inode, ShellError, UserId,
     errors::{FileSystemError, SessionError},
     fs::resolver::resolve_path,
 };
@@ -37,6 +40,25 @@ impl Session {
         );
         fs.create_directory(&resolved_path.display().to_string())?;
         Ok(())
+    }
+
+    pub fn remove_file(&mut self, fs: &mut FileSystem, path: &Path) -> Result<(), ShellError> {
+        let resolved_path = resolve_path(
+            path,
+            &self.get_user_home_directory(fs),
+            &self.current_working_directory,
+        );
+        fs.remove_inode(&resolved_path.display().to_string())?;
+        Ok(())
+    }
+
+    pub fn find_inode(&self, fs: &FileSystem, path: &Path) -> Option<Arc<Mutex<Inode>>> {
+        let resolved_path = resolve_path(
+            path,
+            &self.get_user_home_directory(fs),
+            &self.current_working_directory,
+        );
+        fs.find_absolute_inode(&resolved_path.display().to_string())
     }
 
     pub fn change_directory(&mut self, fs: &FileSystem, path: &Path) -> Result<(), ShellError> {

@@ -7,7 +7,7 @@ use crate::{
     commands::{
         Argument, CommandOutput, ExecutableCommand, Flags,
         args::{ArgumentKind, BasicArgument, BasicArgumentKind},
-        flags::FlagDefinition,
+        flags::{FlagDefinition, FlagDefinitionBuilder},
     },
     errors::FileSystemError,
 };
@@ -21,7 +21,7 @@ impl ExecutableCommand for MakeDirectoryCommand {
     }
 
     fn flags(&self) -> FlagDefinition {
-        FlagDefinition::new()
+        FlagDefinitionBuilder::new().into_flag_definition()
     }
 
     fn args(&self) -> Option<ArgumentKind> {
@@ -35,7 +35,7 @@ impl ExecutableCommand for MakeDirectoryCommand {
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
         let error_builder = |path: &str, message: &str| {
-            format!("mkdir: cannot create directory '{}': {}", path, message)
+            format!("mkdir: cannot create directory '{path}': {message}")
         };
 
         let mut current_session = shell.current_session.clone();

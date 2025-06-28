@@ -6,7 +6,7 @@ use crate::{
     commands::{
         Argument, CommandOutput, ExecutableCommand, Flags,
         args::{ArgumentKind, BasicArgument, BasicArgumentKind},
-        flags::FlagDefinition,
+        flags::{FlagDefinition, FlagDefinitionBuilder},
     },
     errors::{FileSystemError, ShellError},
 };
@@ -20,7 +20,7 @@ impl ExecutableCommand for ChangeDirectoryCommand {
     }
 
     fn flags(&self) -> FlagDefinition {
-        FlagDefinition::new()
+        FlagDefinitionBuilder::new().into_flag_definition()
     }
 
     fn args(&self) -> Option<ArgumentKind> {

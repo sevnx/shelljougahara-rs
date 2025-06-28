@@ -133,7 +133,7 @@ impl FileSystem {
         let user_group_id = self.groups.add_group(username.to_string());
         let user = self.users.user_mut(user_id).expect("User not found");
         user.add_group(user_group_id);
-        self.create_directory(&format!("/home/{}", username))?;
+        self.create_directory(&format!("/home/{username}"))?;
         Ok(user_id)
     }
 
@@ -143,15 +143,20 @@ impl FileSystem {
     }
 
     pub fn remove_inode(&mut self, path: &str) -> Result<(), ShellError> {
-        let inode = self
-            .find_absolute_inode(path)
-            .ok_or(ShellError::FileSystem(FileSystemError::EntryNotFound(
-                path.to_string(),
-            )))?;
-        inode
-            .lock()
-            .expect("Failed to lock inode")
-            .remove_child(path)?;
+        let (parent, child) = path.split_at(path.rfind('/').unwrap_or(0) + 1);
+
+        if let Some(parent_inode) = self.find_absolute_inode(parent) {
+            let mut parent_inode = parent_inode.lock().expect("Failed to lock parent inode");
+            if let InodeContent::Directory(parent_dir) = &mut parent_inode.content {
+                println!("Removing child: {child:?} from {parent:?}");
+                parent_dir.remove_child(child);
+            }
+        } else {
+            return Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                "Parent directory does not exist".to_string(),
+            )));
+        }
+
         Ok(())
     }
 }

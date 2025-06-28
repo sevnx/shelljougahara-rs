@@ -2,8 +2,9 @@
 
 use crate::{
     commands::{
-        Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
-        flags::FlagDefinition,
+        Argument, CommandOutput, ExecutableCommand, Flags,
+        args::ArgumentKind,
+        flags::{FlagDefinition, FlagDefinitionBuilder},
     },
     errors::ShellError,
 };
@@ -18,7 +19,7 @@ impl ExecutableCommand for PwdCommand {
 
     fn flags(&self) -> FlagDefinition {
         // TODO: Maybe add `-L` and `-P` flags.
-        FlagDefinition::new()
+        FlagDefinitionBuilder::new().into_flag_definition()
     }
 
     fn args(&self) -> Option<ArgumentKind> {
