@@ -2,7 +2,8 @@
 
 use crate::{
     commands::{
-        Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
+        Argument, CommandOutput, ExecutableCommand, Flags,
+        args::{ArgumentKind, BasicArgumentKind},
         flags::FlagDefinition,
     },
     errors::ShellError,
@@ -21,7 +22,7 @@ impl ExecutableCommand for ExitCommand {
     }
 
     fn args(&self) -> Option<ArgumentKind> {
-        Some(ArgumentKind::Integer)
+        Some(ArgumentKind::Basic(BasicArgumentKind::Integer))
     }
 
     fn execute(

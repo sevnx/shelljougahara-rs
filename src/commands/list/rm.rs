@@ -3,7 +3,8 @@
 use crate::{
     ShellError,
     commands::{
-        Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
+        Argument, CommandOutput, ExecutableCommand, Flags,
+        args::{ArgumentKind, BasicArgumentKind},
         flags::FlagDefinition,
     },
 };
@@ -21,7 +22,7 @@ impl ExecutableCommand for RemoveCommand {
     }
 
     fn args(&self) -> Option<ArgumentKind> {
-        Some(ArgumentKind::Enumeration(Box::new(ArgumentKind::String)))
+        Some(ArgumentKind::Enumeration(BasicArgumentKind::String))
     }
 
     fn execute(

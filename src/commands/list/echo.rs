@@ -2,7 +2,8 @@
 
 use crate::{
     commands::{
-        Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
+        Argument, CommandOutput, ExecutableCommand, Flags,
+        args::{ArgumentKind, BasicArgument, BasicArgumentKind},
         flags::FlagDefinition,
     },
     errors::ShellError,
@@ -21,7 +22,7 @@ impl ExecutableCommand for EchoCommand {
     }
 
     fn args(&self) -> Option<ArgumentKind> {
-        Some(ArgumentKind::Enumeration(Box::new(ArgumentKind::String)))
+        Some(ArgumentKind::Enumeration(BasicArgumentKind::String))
     }
 
     fn execute(
@@ -34,11 +35,10 @@ impl ExecutableCommand for EchoCommand {
             Some(Argument::List(args)) => {
                 let mut arg_strs = Vec::new();
                 for arg in args {
-                    let arg_str = match arg {
-                        Argument::String(arg) => arg,
+                    match arg {
+                        BasicArgument::String(arg) => arg_strs.push(arg),
                         _ => return Err(ShellError::Internal("Invalid argument".to_string())),
-                    };
-                    arg_strs.push(arg_str);
+                    }
                 }
                 Ok(CommandOutput(Some(arg_strs.join(" "))))
             }

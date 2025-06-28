@@ -2,7 +2,8 @@
 
 use crate::{
     commands::{
-        Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
+        Argument, CommandOutput, ExecutableCommand, Flags,
+        args::{ArgumentKind, BasicArgument, BasicArgumentKind},
         flags::FlagDefinition,
     },
     errors::ShellError,
@@ -21,7 +22,7 @@ impl ExecutableCommand for HistoryCommand {
     }
 
     fn args(&self) -> Option<ArgumentKind> {
-        Some(ArgumentKind::Integer)
+        Some(ArgumentKind::Basic(BasicArgumentKind::Integer))
     }
 
     fn execute(
@@ -35,7 +36,9 @@ impl ExecutableCommand for HistoryCommand {
         let history_iter = history.iter().enumerate();
 
         let history = match args {
-            Some(Argument::Integer(limit)) => history_iter.take(limit as usize).collect::<Vec<_>>(),
+            Some(Argument::Basic(BasicArgument::Integer(limit))) => {
+                history_iter.take(limit as usize).collect::<Vec<_>>()
+            }
             Some(_) => return Err(ShellError::Internal("Invalid argument".to_string())),
             None => history_iter.collect::<Vec<_>>(),
         };

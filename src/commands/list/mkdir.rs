@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use crate::{
     ShellError,
     commands::{
-        Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
+        Argument, CommandOutput, ExecutableCommand, Flags,
+        args::{ArgumentKind, BasicArgument, BasicArgumentKind},
         flags::FlagDefinition,
     },
     errors::FileSystemError,
@@ -24,7 +25,7 @@ impl ExecutableCommand for MakeDirectoryCommand {
     }
 
     fn args(&self) -> Option<ArgumentKind> {
-        Some(ArgumentKind::Enumeration(Box::new(ArgumentKind::String)))
+        Some(ArgumentKind::Enumeration(BasicArgumentKind::String))
     }
 
     fn execute(
@@ -44,10 +45,9 @@ impl ExecutableCommand for MakeDirectoryCommand {
         match args {
             Some(Argument::List(paths)) => {
                 for path in paths {
-                    let arg = if let Argument::String(arg) = path {
-                        arg
-                    } else {
-                        return Err(ShellError::Internal("Invalid argument".to_string()));
+                    let arg = match path {
+                        BasicArgument::String(arg) => arg,
+                        _ => return Err(ShellError::Internal("Invalid argument".to_string())),
                     };
                     let path = PathBuf::from(&arg);
                     if let Err(error) = current_session.create_directory(&mut fs, &path) {

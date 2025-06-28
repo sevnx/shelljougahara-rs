@@ -3,7 +3,7 @@
 use std::{collections::HashMap, sync::OnceLock};
 
 use crate::{
-    commands::args::{ArgumentKind, parse_string_argument},
+    commands::args::{ArgumentKind, BasicArgument, parse_string_argument},
     errors::ShellError,
 };
 use flags::FlagDefinition;
@@ -110,8 +110,8 @@ impl CommandParser {
                         let has_next_flag = flag_iter.peek().is_some();
                         let has_next_arg = args_iter.peek().is_some();
                         match self.flag_defs.get_flag_shorthand(flag) {
-                            Some(flag_spec) => match flag_spec.arg_type {
-                                ArgumentKind::String | ArgumentKind::Integer => {
+                            Some(flag_spec) => match &flag_spec.arg_type {
+                                ArgumentKind::Basic(_) => {
                                     if has_next_flag {
                                         // Technically this means that we combined flags but this
                                         // one expected an argument.
@@ -142,7 +142,8 @@ impl CommandParser {
                                                     e.to_string(),
                                                 )
                                             })?;
-                                    self.parsed_flags.insert(flag_spec.name, parsed_arg);
+                                    self.parsed_flags
+                                        .insert(flag_spec.name, Argument::Basic(parsed_arg));
                                 }
                                 ArgumentKind::List(_) | ArgumentKind::Enumeration(_) => {
                                     return Err(Error::Internal(
@@ -164,7 +165,7 @@ impl CommandParser {
                         .expect("A longhand flag should start with --");
                     match self.flag_defs.get_flag_longhand(flag_name) {
                         Some(flag_spec) => match &flag_spec.arg_type {
-                            ArgumentKind::String | ArgumentKind::Integer => {
+                            ArgumentKind::Basic(_) => {
                                 match args_iter.peek() {
                                     Some(arg) if arg.starts_with('-') => {
                                         return Err(Error::InvalidFlagArgument(
@@ -190,30 +191,37 @@ impl CommandParser {
                                 .map_err(|e| {
                                     Error::ArgumentParsing(flag_arg.to_string(), e.to_string())
                                 })?;
-                                self.parsed_flags.insert(flag_name, parsed_arg);
+                                self.parsed_flags
+                                    .insert(flag_name, Argument::Basic(parsed_arg));
                             }
                             ArgumentKind::List(argument_kinds) => {
-                                let mut list_args: Vec<Argument> = Vec::new();
+                                let mut list_args: Vec<BasicArgument> = Vec::new();
                                 for (i, argument_kind) in argument_kinds.iter().enumerate() {
                                     let arg = args_iter
                                         .next()
                                         .ok_or(Error::MissingCommandArgument(i as u32))?;
-                                    let argument = parse_string_argument(arg, argument_kind)
-                                        .map_err(|e| {
-                                            Error::ArgumentParsing(arg.to_string(), e.to_string())
-                                        })?;
+                                    let argument = parse_string_argument(
+                                        arg,
+                                        &ArgumentKind::Basic(argument_kind.clone()),
+                                    )
+                                    .map_err(|e| {
+                                        Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                    })?;
                                     list_args.push(argument);
                                 }
                                 self.parsed_flags
                                     .insert(flag_name, Argument::List(list_args));
                             }
                             ArgumentKind::Enumeration(argument_kind) => {
-                                let mut list_args: Vec<Argument> = Vec::new();
+                                let mut list_args: Vec<BasicArgument> = Vec::new();
                                 for arg in args_iter.by_ref() {
-                                    let argument = parse_string_argument(arg, argument_kind)
-                                        .map_err(|e| {
-                                            Error::ArgumentParsing(arg.to_string(), e.to_string())
-                                        })?;
+                                    let argument = parse_string_argument(
+                                        arg,
+                                        &ArgumentKind::Basic(argument_kind.clone()),
+                                    )
+                                    .map_err(|e| {
+                                        Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                    })?;
                                     list_args.push(argument);
                                 }
                                 self.parsed_flags
@@ -229,57 +237,63 @@ impl CommandParser {
                 ArgKind::Argument => {
                     if let Some(arg_defs) = &self.arg_defs {
                         match arg_defs {
-                            ArgumentKind::String | ArgumentKind::Integer => {
-                                match self.parsed_args {
-                                    Some(_) => {
-                                        return Err(Error::TooManyArguments);
-                                    }
-                                    None => {
-                                        let argument = parse_string_argument(arg, arg_defs)
-                                            .map_err(|e| {
-                                                Error::ArgumentParsing(
-                                                    arg.to_string(),
-                                                    e.to_string(),
-                                                )
-                                            })?;
-                                        self.parsed_args = Some(argument);
-                                    }
+                            ArgumentKind::Basic(_) => match self.parsed_args {
+                                Some(_) => {
+                                    return Err(Error::TooManyArguments);
                                 }
-                            }
-                            ArgumentKind::List(argument_kinds) => {
-                                let mut list_args: Vec<Argument> = Vec::new();
-                                let mut arg_kinds = argument_kinds.iter().enumerate();
-                                let argument =
-                                    parse_string_argument(arg, arg_kinds.next().unwrap().1)
-                                        .map_err(|e| {
+                                None => {
+                                    let argument =
+                                        parse_string_argument(arg, arg_defs).map_err(|e| {
                                             Error::ArgumentParsing(arg.to_string(), e.to_string())
                                         })?;
+                                    self.parsed_args = Some(Argument::Basic(argument));
+                                }
+                            },
+                            ArgumentKind::List(argument_kinds) => {
+                                let mut list_args: Vec<BasicArgument> = Vec::new();
+                                let mut arg_kinds = argument_kinds.iter().enumerate();
+                                let argument = parse_string_argument(
+                                    arg,
+                                    &ArgumentKind::Basic(arg_kinds.next().unwrap().1.clone()),
+                                )
+                                .map_err(|e| {
+                                    Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                })?;
                                 list_args.push(argument);
 
                                 for (i, argument_kind) in arg_kinds {
                                     let arg = args_iter
                                         .next()
                                         .ok_or(Error::MissingCommandArgument(i as u32))?;
-                                    let argument = parse_string_argument(arg, argument_kind)
-                                        .map_err(|e| {
-                                            Error::ArgumentParsing(arg.to_string(), e.to_string())
-                                        })?;
+                                    let argument = parse_string_argument(
+                                        arg,
+                                        &ArgumentKind::Basic(argument_kind.clone()),
+                                    )
+                                    .map_err(|e| {
+                                        Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                    })?;
                                     list_args.push(argument);
                                 }
                                 self.parsed_args = Some(Argument::List(list_args));
                             }
                             ArgumentKind::Enumeration(argument_kind) => {
-                                let mut list_args: Vec<Argument> = Vec::new();
-                                let argument =
-                                    parse_string_argument(arg, argument_kind).map_err(|e| {
-                                        Error::ArgumentParsing(arg.to_string(), e.to_string())
-                                    })?;
+                                let mut list_args: Vec<BasicArgument> = Vec::new();
+                                let argument = parse_string_argument(
+                                    arg,
+                                    &ArgumentKind::Basic(argument_kind.clone()),
+                                )
+                                .map_err(|e| {
+                                    Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                })?;
                                 list_args.push(argument);
                                 for arg in args_iter.by_ref() {
-                                    let argument = parse_string_argument(arg, argument_kind)
-                                        .map_err(|e| {
-                                            Error::ArgumentParsing(arg.to_string(), e.to_string())
-                                        })?;
+                                    let argument = parse_string_argument(
+                                        arg,
+                                        &ArgumentKind::Basic(argument_kind.clone()),
+                                    )
+                                    .map_err(|e| {
+                                        Error::ArgumentParsing(arg.to_string(), e.to_string())
+                                    })?;
                                     list_args.push(argument);
                                 }
                                 self.parsed_args = Some(Argument::List(list_args));

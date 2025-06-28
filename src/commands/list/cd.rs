@@ -4,7 +4,8 @@ use std::path::PathBuf;
 
 use crate::{
     commands::{
-        Argument, CommandOutput, ExecutableCommand, Flags, args::ArgumentKind,
+        Argument, CommandOutput, ExecutableCommand, Flags,
+        args::{ArgumentKind, BasicArgument, BasicArgumentKind},
         flags::FlagDefinition,
     },
     errors::{FileSystemError, ShellError},
@@ -23,7 +24,7 @@ impl ExecutableCommand for ChangeDirectoryCommand {
     }
 
     fn args(&self) -> Option<ArgumentKind> {
-        Some(ArgumentKind::String)
+        Some(ArgumentKind::Basic(BasicArgumentKind::String))
     }
 
     fn execute(
@@ -33,7 +34,7 @@ impl ExecutableCommand for ChangeDirectoryCommand {
         shell: &mut crate::shell::Shell,
     ) -> Result<CommandOutput, ShellError> {
         let path = match args {
-            Some(Argument::String(path)) => path,
+            Some(Argument::Basic(BasicArgument::String(path))) => path,
             _ => return Err(ShellError::Internal("Invalid argument".to_string())),
         };
         let path = PathBuf::from(path);
