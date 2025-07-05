@@ -33,6 +33,13 @@ impl UserStore {
         id
     }
 
+    pub fn find_by_username(&self, username: &str) -> Option<UserId> {
+        self.users
+            .iter()
+            .find(|(_, user)| user.name == username)
+            .map(|(id, _)| *id)
+    }
+
     pub fn user(&self, id: UserId) -> Option<&User> {
         self.users.get(&id)
     }

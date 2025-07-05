@@ -20,6 +20,10 @@ pub enum FileSystemError {
     /// It has been checked in Linux, that even for a directory, it says "File exists"
     #[error("{0}: File exists")]
     EntryAlreadyExists(String),
+    #[error("'{0}': Not a directory")]
+    NotADirectory(String),
+    #[error("User already exists: {0}")]
+    UserAlreadyExists(String),
     #[error("Directory not found")]
     DirectoryNotFound(String),
     #[error("Incorrect path")]

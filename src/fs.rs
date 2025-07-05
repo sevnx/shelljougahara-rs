@@ -11,6 +11,7 @@ use users::{GroupStore, UserStore};
 use crate::{
     FilePermissions, InodeContent, InodeMetadata, UserId,
     errors::{FileSystemError, ShellError},
+    fs::inode::content::File,
 };
 
 pub mod inode;
@@ -60,10 +61,38 @@ impl FileSystem {
         }
     }
 
+    pub fn create_file(&mut self, path: &str) -> Result<Arc<Mutex<Inode>>, ShellError> {
+        let (components, last_component) = path.split_at(path.rfind('/').unwrap_or(0) + 1);
+        let current_inode = self.path_from_components(components)?;
+        current_inode
+            .lock()
+            .expect("Failed to lock inode")
+            .add_child(
+                last_component,
+                InodeContent::File(File::new()),
+                Arc::downgrade(&current_inode),
+            )
+    }
+
     pub fn create_directory(&mut self, path: &str) -> Result<Arc<Mutex<Inode>>, ShellError> {
         let (components, last_component) = path.split_at(path.rfind('/').unwrap_or(0) + 1);
+        let current_inode = self.path_from_components(components)?;
+        current_inode
+            .lock()
+            .expect("Failed to lock inode")
+            .add_child(
+                last_component,
+                InodeContent::Directory(Directory::new()),
+                Arc::downgrade(&current_inode),
+            )
+    }
+
+    fn path_from_components(&self, path: &str) -> Result<Arc<Mutex<Inode>>, ShellError> {
         let mut current_inode = Some(self.root.clone());
-        for component in components.split('/') {
+        // We separate the path into components (which should be directories) and the last component (which is the path)
+        let (components, _) = path.split_at(path.rfind('/').unwrap_or(0) + 1);
+        let mut components_iter = components.split('/').peekable();
+        while let Some(component) = components_iter.next() {
             let inode = current_inode.take().expect("Inode is empty");
             let inode_copy = inode.clone();
             let inner_inode = inode.lock().expect("Failed to lock inner inode");
@@ -77,13 +106,15 @@ impl FileSystem {
                         current_inode = Some(parent_arc);
                     }
                     None => {
-                        if inner_inode.path()? == PathBuf::from("/") {
+                        let path = inner_inode.path()?;
+                        if path == PathBuf::from("/") {
                             current_inode = Some(inode_copy);
                         } else {
                             return Err(ShellError::FileSystem(
-                                FileSystemError::DirectoryNotFound(
-                                    "Parent directory does not exist".to_string(),
-                                ),
+                                FileSystemError::DirectoryNotFound(format!(
+                                    "Failed to get parent of {}",
+                                    path.display()
+                                )),
                             ));
                         }
                     }
@@ -100,9 +131,15 @@ impl FileSystem {
                                 current_inode = Some(child_inode);
                             }
                             _ => {
-                                return Err(ShellError::FileSystem(
-                                    FileSystemError::EntryAlreadyExists(path.to_string()),
-                                ));
+                                if components_iter.peek().is_some() {
+                                    return Err(ShellError::FileSystem(
+                                        FileSystemError::NotADirectory(path.to_string()),
+                                    ));
+                                } else {
+                                    return Err(ShellError::FileSystem(
+                                        FileSystemError::EntryAlreadyExists(path.to_string()),
+                                    ));
+                                }
                             }
                         }
                     }
@@ -114,26 +151,31 @@ impl FileSystem {
                 },
             }
         }
-        let current_inode = current_inode.expect("Failed to lock current inode");
-        current_inode
-            .lock()
-            .expect("Failed to lock inode")
-            .add_child(
-                last_component,
-                InodeContent::Directory(Directory::new()),
-                Arc::downgrade(&current_inode),
-            )
+
+        Ok(current_inode.expect("Inode is empty"))
     }
 
     pub fn add_user(&mut self, username: &str) -> Result<UserId, ShellError> {
         if self.find_absolute_inode("/home").is_none() {
             self.create_directory("/home")?;
         }
+
+        if self.users.find_by_username(username).is_some() {
+            return Err(ShellError::FileSystem(FileSystemError::EntryAlreadyExists(
+                username.to_string(),
+            )));
+        }
+
         let user_id = self.users.add_user(username.to_string());
         let user_group_id = self.groups.add_group(username.to_string());
         let user = self.users.user_mut(user_id).expect("User not found");
         user.add_group(user_group_id);
-        self.create_directory(&format!("/home/{username}"))?;
+        let user_home_dir = self.create_directory(&format!("/home/{username}"))?;
+        let mut user_home_dir_inode = user_home_dir
+            .lock()
+            .expect("Failed to lock user home directory");
+        user_home_dir_inode.metadata.group = user_group_id;
+        user_home_dir_inode.metadata.owner = user_id;
         Ok(user_id)
     }
 
