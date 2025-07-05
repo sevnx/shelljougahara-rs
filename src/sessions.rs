@@ -32,24 +32,30 @@ impl Session {
         }
     }
 
-    pub fn create_file(&mut self, fs: &mut FileSystem, path: &Path) -> Result<(), ShellError> {
+    pub fn create_file(
+        &mut self,
+        fs: &mut FileSystem,
+        path: &Path,
+    ) -> Result<Arc<Mutex<Inode>>, ShellError> {
         let resolved_path = resolve_path(
             path,
             &self.get_user_home_directory(fs),
             &self.current_working_directory,
         );
-        fs.create_file(&resolved_path.display().to_string())?;
-        Ok(())
+        fs.create_file(&resolved_path.display().to_string())
     }
 
-    pub fn create_directory(&mut self, fs: &mut FileSystem, path: &Path) -> Result<(), ShellError> {
+    pub fn create_directory(
+        &mut self,
+        fs: &mut FileSystem,
+        path: &Path,
+    ) -> Result<Arc<Mutex<Inode>>, ShellError> {
         let resolved_path = resolve_path(
             path,
             &self.get_user_home_directory(fs),
             &self.current_working_directory,
         );
-        fs.create_directory(&resolved_path.display().to_string())?;
-        Ok(())
+        fs.create_directory(&resolved_path.display().to_string())
     }
 
     pub fn remove_file(&mut self, fs: &mut FileSystem, path: &Path) -> Result<(), ShellError> {

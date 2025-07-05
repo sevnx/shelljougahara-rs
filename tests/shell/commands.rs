@@ -7,3 +7,4 @@ mod history;
 mod mkdir;
 mod pwd;
 mod rm;
+mod touch;

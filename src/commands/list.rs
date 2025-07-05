@@ -11,6 +11,7 @@ pub mod history;
 pub mod mkdir;
 pub mod pwd;
 pub mod rm;
+pub mod touch;
 
 #[derive(EnumIter, Clone, Copy)]
 #[enum_dispatch::enum_dispatch]
@@ -22,4 +23,5 @@ pub enum Commands {
     Exit(list::exit::ExitCommand),
     MakeDirectory(list::mkdir::MakeDirectoryCommand),
     Remove(list::rm::RemoveCommand),
+    Touch(list::touch::TouchCommand),
 }
