@@ -69,10 +69,10 @@ impl ExecutableCommand for TouchCommand {
                                     "Not a directory",
                                 ));
                             }
-                            ShellError::FileSystem(FileSystemError::EntryAlreadyExists(_)) => {
+                            ShellError::FileSystem(FileSystemError::EntryNotFound(_)) => {
                                 error_messages.push(error_builder(
                                     &path.display().to_string(),
-                                    "File exists",
+                                    "No such file or directory",
                                 ));
                             }
                             _ => {

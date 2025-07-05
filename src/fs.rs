@@ -144,7 +144,7 @@ impl FileSystem {
                         }
                     }
                     None => {
-                        return Err(ShellError::FileSystem(FileSystemError::DirectoryNotFound(
+                        return Err(ShellError::FileSystem(FileSystemError::EntryNotFound(
                             path.to_string(),
                         )));
                     }

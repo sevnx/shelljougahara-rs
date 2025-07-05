@@ -55,7 +55,7 @@ impl ExecutableCommand for MakeDirectoryCommand {
                             ShellError::FileSystem(FileSystemError::EntryAlreadyExists(_)) => {
                                 error_messages.push(error_builder(&arg, "File exists"));
                             }
-                            ShellError::FileSystem(FileSystemError::DirectoryNotFound(_)) => {
+                            ShellError::FileSystem(FileSystemError::EntryNotFound(_)) => {
                                 error_messages
                                     .push(error_builder(&arg, "No such file or directory"));
                             }
