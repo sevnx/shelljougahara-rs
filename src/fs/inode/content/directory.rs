@@ -8,6 +8,7 @@ use std::{
 use crate::{
     Inode,
     errors::{FileSystemError, ShellError},
+    fs::inode::size::Size,
 };
 
 #[derive(Debug, Clone)]
@@ -49,6 +50,14 @@ impl Directory {
 
     pub fn find_child(&self, name: &str) -> Option<Arc<Mutex<Inode>>> {
         self.children.get(name).cloned()
+    }
+}
+
+impl Size for Directory {
+    fn size(&self) -> u64 {
+        // Mimick Linux directory entry size, even if it isn't the actual size
+        const DIR_ENTRY_SIZE: u64 = 4096;
+        DIR_ENTRY_SIZE
     }
 }
 

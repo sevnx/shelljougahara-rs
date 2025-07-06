@@ -10,11 +10,12 @@ use metadata::InodeMetadata;
 
 use crate::{
     errors::{FileSystemError, ShellError},
-    fs::inode::content::InodeType,
+    fs::inode::{content::InodeType, size::Size},
 };
 
 pub mod content;
 pub mod metadata;
+pub mod size;
 
 #[derive(Debug, Clone)]
 pub struct Inode {
@@ -22,6 +23,12 @@ pub struct Inode {
     pub content: InodeContent,
     pub metadata: InodeMetadata,
     pub parent: Option<Weak<Mutex<Inode>>>,
+}
+
+impl Size for Inode {
+    fn size(&self) -> u64 {
+        self.content.size()
+    }
 }
 
 impl Inode {
