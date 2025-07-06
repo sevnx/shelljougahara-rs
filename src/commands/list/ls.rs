@@ -1,5 +1,6 @@
 //! The `ls` command lists the contents of a directory.
 
+use core::panic;
 use std::path::Path;
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
@@ -7,17 +8,21 @@ use chrono::{DateTime, Datelike, Timelike, Utc};
 use crate::commands::args::{ArgumentKind, BasicArgument, BasicArgumentKind};
 use crate::commands::flags::{FlagDefinition, FlagDefinitionBuilder};
 use crate::commands::{Argument, CommandOutput, ExecutableCommand, Flags};
-use crate::errors::{FileSystemError, ShellError};
+use crate::errors::ShellError;
 use crate::fs::inode::content::InodeType;
 use crate::fs::inode::size::Size;
 use crate::fs::permissions::Permission;
-use crate::sessions::Session;
-use crate::{FilePermissions, FileSystem, Inode};
+use crate::{FilePermissions, FileSystem, Inode, InodeContent};
 
 #[derive(Clone, Default, Copy)]
 pub struct LsCommand;
 
-const ENTRY_SEPARATOR: &str = "  ";
+const fn entry_separator(display_mode: &ListDisplayMode) -> &str {
+    match display_mode {
+        ListDisplayMode::Long => "\n",
+        ListDisplayMode::Short => "  ",
+    }
+}
 
 impl ExecutableCommand for LsCommand {
     fn name(&self) -> &'static str {
@@ -67,22 +72,66 @@ impl ExecutableCommand for LsCommand {
 
         match args {
             ListArgKind::Single(dir) => {
-                let contents =
-                    get_dir_contents(&shell.fs, &shell.current_session, &dir, &display_mode)?;
-                output.push_str(&contents);
-                output.push('\n');
+                match shell.current_session.find_inode(&shell.fs, Path::new(&dir)) {
+                    Some(inode) => {
+                        let inode = inode.lock().expect("Failed to lock inode");
+                        let inode_type = inode.inode_type();
+                        if inode_type == InodeType::Directory {
+                            let contents = get_dir_contents(
+                                &shell.fs,
+                                &inode,
+                                &display_mode,
+                                &LongEntryFormatOptions::new(),
+                            )?;
+                            output.push_str(&contents);
+                        } else {
+                            output.push_str(&inode.name);
+                        }
+                    }
+                    None => {
+                        output.push_str(&format!(
+                            "ls: cannot access '{dir}': No such file or directory"
+                        ));
+                    }
+                };
             }
             ListArgKind::Multiple(items) => {
-                for item in items {
-                    let contents =
-                        get_dir_contents(&shell.fs, &shell.current_session, &item, &display_mode)?;
+                let entry_inodes = items.iter().fold(DirEntries::new(), |mut acc, item| {
+                    match shell.current_session.find_inode(&shell.fs, Path::new(item)) {
+                        Some(inode) => {
+                            let inode = inode.lock().expect("Failed to lock inode");
+                            let clone = inode.clone();
+                            acc.add_entry(DirEntry { inode: clone });
+                            drop(inode);
+                        }
+                        None => output.push_str(&format!(
+                            "ls: cannot access '{item}': No such file or directory"
+                        )),
+                    };
+                    acc
+                });
+
+                let mut entry_inodes_iter = entry_inodes.entries.iter().peekable();
+                while let Some(inode) = entry_inodes_iter.next() {
+                    let contents = get_dir_contents(
+                        &shell.fs,
+                        &inode.inode,
+                        &display_mode,
+                        &entry_inodes.options,
+                    )?;
                     output.push_str(&contents);
-                    output.push('\n');
+                    if entry_inodes_iter.peek().is_some() {
+                        output.push_str(entry_separator(&display_mode));
+                    }
                 }
             }
         }
 
-        Ok(CommandOutput(None))
+        if output.is_empty() {
+            Ok(CommandOutput(None))
+        } else {
+            Ok(CommandOutput(Some(output)))
+        }
     }
 }
 
@@ -111,60 +160,23 @@ impl DirEntries {
 
 fn get_dir_contents(
     fs: &FileSystem,
-    session: &Session,
-    dir: &str,
+    entry: &Inode,
     display_mode: &ListDisplayMode,
+    options: &LongEntryFormatOptions,
 ) -> Result<String, ShellError> {
     let mut content = String::new();
 
-    let processed_entries = match fs.read_dir(dir) {
-        Ok(entries) => {
-            let mut processed_entries = DirEntries::new();
-            for entry in entries {
-                let inode = session.find_inode(fs, Path::new(&format!("{dir}/{entry}")));
-
-                match inode {
-                    Some(inode) => {
-                        let locked_inode = inode.lock().expect("Failed to lock inode");
-                        // TODO: Remove this clone
-                        processed_entries.add_entry(DirEntry {
-                            inode: locked_inode.clone(),
-                        });
-                    }
-                    None => {
-                        return Err(ShellError::Internal(format!(
-                            "Failed to find inode for {dir}/{entry}"
-                        )));
-                    }
-                }
+    match &entry.content {
+        InodeContent::File(_) => {
+            content.push_str(&format_dir_entry(fs, entry, display_mode, options));
+        }
+        InodeContent::Directory(dir) => {
+            for (_, inode) in dir.children.iter() {
+                let inode = inode.lock().expect("Failed to lock inode");
+                content.push_str(&format_dir_entry(fs, &inode, display_mode, options));
             }
-            processed_entries
         }
-        Err(ShellError::FileSystem(FileSystemError::NotADirectory(path))) => {
-            let inode = match session.find_inode(fs, Path::new(&path)) {
-                Some(inode) => inode,
-                None => return Err(ShellError::FileSystem(FileSystemError::EntryNotFound(path))),
-            };
-            let inode = inode.lock().expect("Failed to lock inode");
-
-            let mut processed_entries = DirEntries::new();
-            processed_entries.add_entry(DirEntry {
-                inode: inode.clone(),
-            });
-            processed_entries
-        }
-        Err(e) => return Err(e),
-    };
-
-    // Format the entries
-    for entry in processed_entries.entries {
-        content.push_str(&format_dir_entry(
-            fs,
-            &entry.inode,
-            display_mode,
-            &processed_entries.options,
-        ));
-        content.push('\n');
+        _ => todo!(),
     }
 
     Ok(content)
@@ -200,11 +212,9 @@ fn format_dir_entry(
             let date = format_date(entry.metadata.created_at, options.has_dates_from_this_year);
             let name = entry.name.clone();
 
-            format!("{dir}{permissions} {hard_links} {user} {group} {size} {date} {name}",)
+            format!("{dir}{permissions} {hard_links} {user} {group} {size} {date} {name}")
         }
-        ListDisplayMode::Short => {
-            format!("{}{}", entry.name, ENTRY_SEPARATOR)
-        }
+        ListDisplayMode::Short => entry.name.clone(),
     }
 }
 

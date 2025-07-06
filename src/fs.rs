@@ -192,22 +192,6 @@ impl FileSystem {
         find_relative_inode(self.root.clone(), path)
     }
 
-    pub fn read_dir(&self, path: &str) -> Result<Vec<String>, ShellError> {
-        let inode = self
-            .find_absolute_inode(path)
-            .ok_or(ShellError::FileSystem(FileSystemError::EntryNotFound(
-                path.to_string(),
-            )))?;
-        let inode = inode.lock().expect("Failed to lock inode");
-        let content = inode.content.clone();
-        match content {
-            InodeContent::Directory(dir) => Ok(dir.children.keys().cloned().collect()),
-            _ => Err(ShellError::FileSystem(FileSystemError::NotADirectory(
-                path.to_string(),
-            ))),
-        }
-    }
-
     pub fn remove_inode(&mut self, path: &str) -> Result<(), ShellError> {
         let (parent, child) = path.split_at(path.rfind('/').unwrap_or(0) + 1);
 

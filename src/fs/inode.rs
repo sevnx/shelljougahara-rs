@@ -77,12 +77,6 @@ impl Inode {
     pub fn hard_link_count(&self) -> u64 {
         let mut count = self.hard_link_count;
 
-        if let Some(parent) = self.parent.as_ref() {
-            let parent = parent.upgrade().expect("Parent inode should exist");
-            let inode = parent.lock().expect("Failed to lock parent inode");
-            count += inode.hard_link_count();
-        }
-
         if let InodeContent::Directory(contents) = &self.content {
             for child in contents.children.values() {
                 count += child
