@@ -8,6 +8,7 @@ pub mod cd;
 pub mod echo;
 pub mod exit;
 pub mod history;
+pub mod ls;
 pub mod mkdir;
 pub mod pwd;
 pub mod rm;
@@ -24,4 +25,5 @@ pub enum Commands {
     MakeDirectory(list::mkdir::MakeDirectoryCommand),
     Remove(list::rm::RemoveCommand),
     Touch(list::touch::TouchCommand),
+    List(list::ls::LsCommand),
 }

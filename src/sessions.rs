@@ -115,12 +115,12 @@ impl Session {
     }
 
     fn get_user_home_directory(&self, fs: &FileSystem) -> PathBuf {
-        let user = fs.users.user(self.current_user).expect("User not found");
+        let user = fs.get_user(self.current_user).expect("User not found");
         PathBuf::from(format!("/home/{}", user.name))
     }
 
     pub fn change_user(&mut self, fs: &FileSystem, user_id: UserId) -> Result<(), ShellError> {
-        if fs.users.user(user_id).is_none() {
+        if fs.get_user(user_id).is_none() {
             return Err(ShellError::Session(SessionError::UserNotFound));
         }
         self.current_user = user_id;

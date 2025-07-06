@@ -9,7 +9,7 @@ use inode::{Inode, content::Directory};
 use users::{GroupStore, UserStore};
 
 use crate::{
-    FilePermissions, InodeContent, InodeMetadata, UserId,
+    FilePermissions, Group, GroupId, InodeContent, InodeMetadata, User, UserId,
     errors::{FileSystemError, ShellError},
     fs::inode::content::File,
 };
@@ -23,8 +23,8 @@ pub mod users;
 #[derive(Debug, Clone)]
 pub struct FileSystem {
     pub root: Arc<Mutex<Inode>>,
-    pub users: UserStore,
-    pub groups: GroupStore,
+    users: UserStore,
+    groups: GroupStore,
 }
 
 impl FileSystem {
@@ -59,6 +59,14 @@ impl FileSystem {
             users,
             groups,
         }
+    }
+
+    pub fn get_user(&self, user_id: UserId) -> Option<&User> {
+        self.users.user(user_id)
+    }
+
+    pub fn get_group(&self, group_id: GroupId) -> Option<&Group> {
+        self.groups.group(group_id)
     }
 
     pub fn create_file(&mut self, path: &str) -> Result<Arc<Mutex<Inode>>, ShellError> {
@@ -182,6 +190,22 @@ impl FileSystem {
     #[must_use]
     pub fn find_absolute_inode(&self, path: &str) -> Option<Arc<Mutex<Inode>>> {
         find_relative_inode(self.root.clone(), path)
+    }
+
+    pub fn read_dir(&self, path: &str) -> Result<Vec<String>, ShellError> {
+        let inode = self
+            .find_absolute_inode(path)
+            .ok_or(ShellError::FileSystem(FileSystemError::EntryNotFound(
+                path.to_string(),
+            )))?;
+        let inode = inode.lock().expect("Failed to lock inode");
+        let content = inode.content.clone();
+        match content {
+            InodeContent::Directory(dir) => Ok(dir.children.keys().cloned().collect()),
+            _ => Err(ShellError::FileSystem(FileSystemError::NotADirectory(
+                path.to_string(),
+            ))),
+        }
     }
 
     pub fn remove_inode(&mut self, path: &str) -> Result<(), ShellError> {

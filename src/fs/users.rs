@@ -47,10 +47,6 @@ impl UserStore {
     pub fn user_mut(&mut self, id: UserId) -> Option<&mut User> {
         self.users.get_mut(&id)
     }
-
-    pub fn delete_user(&mut self, id: UserId) {
-        self.users.remove(&id);
-    }
 }
 
 impl Default for UserStore {
@@ -108,10 +104,6 @@ impl GroupStore {
 
     pub fn group(&self, id: GroupId) -> Option<&Group> {
         self.groups.get(&id)
-    }
-
-    pub fn delete_group(&mut self, id: GroupId) {
-        self.groups.remove(&id);
     }
 }
 

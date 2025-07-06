@@ -22,6 +22,7 @@ pub struct Inode {
     pub name: String,
     pub content: InodeContent,
     pub metadata: InodeMetadata,
+    pub hard_link_count: u64,
     pub parent: Option<Weak<Mutex<Inode>>>,
 }
 
@@ -53,6 +54,7 @@ impl Inode {
             name,
             content,
             metadata,
+            hard_link_count: 1,
             parent,
         })
     }
@@ -69,6 +71,28 @@ impl Inode {
     #[must_use]
     pub fn parent(&self) -> Option<Weak<Mutex<Inode>>> {
         self.parent.clone()
+    }
+
+    /// Returns the number of hard links to the inode.
+    pub fn hard_link_count(&self) -> u64 {
+        let mut count = self.hard_link_count;
+
+        if let Some(parent) = self.parent.as_ref() {
+            let parent = parent.upgrade().expect("Parent inode should exist");
+            let inode = parent.lock().expect("Failed to lock parent inode");
+            count += inode.hard_link_count();
+        }
+
+        if let InodeContent::Directory(contents) = &self.content {
+            for child in contents.children.values() {
+                count += child
+                    .lock()
+                    .expect("Failed to lock child inode")
+                    .hard_link_count();
+            }
+        }
+
+        count
     }
 
     /// Returns the path of the inode.

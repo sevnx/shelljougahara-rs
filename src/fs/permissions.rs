@@ -34,6 +34,33 @@ impl FilePermissions {
     pub fn mode(&self) -> u32 {
         self.mode
     }
+
+    #[must_use]
+    pub fn user(&self) -> Permission {
+        Permission {
+            read: (self.mode & 0o400) != 0,
+            write: (self.mode & 0o200) != 0,
+            execute: (self.mode & 0o100) != 0,
+        }
+    }
+
+    #[must_use]
+    pub fn group(&self) -> Permission {
+        Permission {
+            read: (self.mode & 0o040) != 0,
+            write: (self.mode & 0o020) != 0,
+            execute: (self.mode & 0o010) != 0,
+        }
+    }
+
+    #[must_use]
+    pub fn other(&self) -> Permission {
+        Permission {
+            read: (self.mode & 0o004) != 0,
+            write: (self.mode & 0o002) != 0,
+            execute: (self.mode & 0o001) != 0,
+        }
+    }
 }
 
 pub struct Permission {
