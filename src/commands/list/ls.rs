@@ -6,7 +6,7 @@ use std::path::Path;
 use chrono::{DateTime, Datelike, Timelike, Utc};
 
 use crate::commands::args::{ArgumentKind, BasicArgument, BasicArgumentKind};
-use crate::commands::flags::{FlagDefinition, FlagDefinitionBuilder};
+use crate::commands::flags::{FlagDefinition, FlagDefinitionBuilder, FlagSpecification};
 use crate::commands::{Argument, CommandOutput, ExecutableCommand, Flags};
 use crate::errors::ShellError;
 use crate::fs::inode::content::InodeType;
@@ -30,7 +30,26 @@ impl ExecutableCommand for LsCommand {
     }
 
     fn flags(&self) -> FlagDefinition {
-        FlagDefinitionBuilder::new().into_flag_definition()
+        FlagDefinitionBuilder::new()
+            .with_flag(FlagSpecification::new(
+                "l",
+                Some('l'),
+                false,
+                ArgumentKind::Flag,
+            ))
+            .with_flag(FlagSpecification::new(
+                "a",
+                Some('a'),
+                false,
+                ArgumentKind::Flag,
+            ))
+            .with_flag(FlagSpecification::new(
+                "A",
+                Some('A'),
+                false,
+                ArgumentKind::Flag,
+            ))
+            .into_flag_definition()
     }
 
     fn args(&self) -> Option<ArgumentKind> {
@@ -68,6 +87,14 @@ impl ExecutableCommand for LsCommand {
             ListDisplayMode::Short
         };
 
+        let displayed_entries = if flags.flag("a").is_some() {
+            DisplayedEntriesOptions::All
+        } else if flags.flag("A").is_some() {
+            DisplayedEntriesOptions::ShowDotFiles
+        } else {
+            DisplayedEntriesOptions::HideDotFiles
+        };
+
         let mut output = String::new();
 
         match args {
@@ -82,6 +109,7 @@ impl ExecutableCommand for LsCommand {
                                 &inode,
                                 &display_mode,
                                 &LongEntryFormatOptions::new(),
+                                &displayed_entries,
                             )?;
                             output.push_str(&contents);
                         } else {
@@ -118,6 +146,7 @@ impl ExecutableCommand for LsCommand {
                         &inode.inode,
                         &display_mode,
                         &entry_inodes.options,
+                        &displayed_entries,
                     )?;
                     output.push_str(&contents);
                     if entry_inodes_iter.peek().is_some() {
@@ -162,18 +191,79 @@ fn get_dir_contents(
     fs: &FileSystem,
     entry: &Inode,
     display_mode: &ListDisplayMode,
-    options: &LongEntryFormatOptions,
+    entry_format: &LongEntryFormatOptions,
+    displayed_entries: &DisplayedEntriesOptions,
 ) -> Result<String, ShellError> {
     let mut content = String::new();
 
     match &entry.content {
         InodeContent::File(_) => {
-            content.push_str(&format_dir_entry(fs, entry, display_mode, options));
+            content.push_str(&format_dir_entry(
+                fs,
+                &entry.name,
+                entry,
+                display_mode,
+                entry_format,
+            ));
         }
         InodeContent::Directory(dir) => {
-            for (_, inode) in dir.children.iter() {
+            let mut has_entries = false;
+
+            // Add . and ..
+            if displayed_entries == &DisplayedEntriesOptions::All {
+                content.push_str(&format_dir_entry(
+                    fs,
+                    ".",
+                    entry,
+                    display_mode,
+                    entry_format,
+                ));
+                content.push_str(entry_separator(display_mode));
+                has_entries = true;
+
+                let parent = entry.parent.as_ref().expect("Parent inode should exist");
+                let parent = parent.upgrade().expect("Parent inode should exist");
+                let parent = parent.lock().expect("Failed to lock parent inode");
+                content.push_str(&format_dir_entry(
+                    fs,
+                    "..",
+                    &parent,
+                    display_mode,
+                    entry_format,
+                ));
+            }
+
+            // Sort entries and filter out hidden entries (if needed)
+            let mut entries = dir
+                .children
+                .iter()
+                .filter(|(name, _)| {
+                    !(name.starts_with('.')
+                        && displayed_entries == &DisplayedEntriesOptions::HideDotFiles)
+                })
+                .collect::<Vec<_>>();
+            entries.sort_by(|a, b| a.0.cmp(b.0));
+
+            for (name, inode) in entries {
                 let inode = inode.lock().expect("Failed to lock inode");
-                content.push_str(&format_dir_entry(fs, &inode, display_mode, options));
+
+                if !(name.starts_with('.')
+                    && displayed_entries == &DisplayedEntriesOptions::HideDotFiles)
+                {
+                    if has_entries {
+                        content.push_str(entry_separator(display_mode));
+                    } else {
+                        has_entries = true;
+                    }
+
+                    content.push_str(&format_dir_entry(
+                        fs,
+                        &inode.name,
+                        &inode,
+                        display_mode,
+                        entry_format,
+                    ));
+                }
             }
         }
         _ => todo!(),
@@ -184,6 +274,7 @@ fn get_dir_contents(
 
 fn format_dir_entry(
     fs: &FileSystem,
+    name: &str,
     entry: &Inode,
     display_mode: &ListDisplayMode,
     options: &LongEntryFormatOptions,
@@ -210,11 +301,10 @@ fn format_dir_entry(
             let size = entry.size();
 
             let date = format_date(entry.metadata.created_at, options.has_dates_from_this_year);
-            let name = entry.name.clone();
 
             format!("{dir}{permissions} {hard_links} {user} {group} {size} {date} {name}")
         }
-        ListDisplayMode::Short => entry.name.clone(),
+        ListDisplayMode::Short => name.to_string(),
     }
 }
 
@@ -325,4 +415,11 @@ enum ListArgKind {
 enum ListDisplayMode {
     Long,
     Short,
+}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum DisplayedEntriesOptions {
+    All,
+    ShowDotFiles,
+    HideDotFiles,
 }
