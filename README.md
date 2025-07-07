@@ -17,7 +17,7 @@ similar.
 
 ## Features / Roadmap
 
-- [ ] Simple shell capable of executing defined commands
+- [x] Simple shell capable of executing defined commands
 - [ ] File system that implements file system operations (create, read, write, move, delete)
 - [ ] User management (create, delete, change user)
 - [ ] Group management (create, delete, change group)

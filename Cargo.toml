@@ -2,7 +2,7 @@
 name = "shelljougahara"
 description = "A simulated shell written in Rust."
 publish = true
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 authors = ["Seweryn Czykinowski <sevveryn.czykinowski@gmail.com>"]
 readme = "README.md"
